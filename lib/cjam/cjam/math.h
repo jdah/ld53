@@ -6,8 +6,19 @@
 #include "util.h"
 
 #include <cglm/struct.h>
+#include "ivec2s.h"
 
 #include <math.h>
+
+#define MKV2I2(_x, _y) ((ivec2s) {{ (_x), (_y) }})
+#define MKV2I1(_s) ({ __typeof__(_s) __s = (_s); ((ivec2s) {{ __s, __s }}); })
+#define MKV2I0() ((ivec2s) {{ 0, 0 }})
+#define IVEC2S(...) (VFUNC(MKV2I, __VA_ARGS__))
+
+#define MKV22(_x, _y) ((vec2s) {{ (_x), (_y) }})
+#define MKV21(_s) ({ __typeof__(_s) __s = (_s); ((vec2s) {{ __s, __s }}); })
+#define MKV20() ((vec2s) {{ 0, 0 }})
+#define VEC2S(...) VFUNC(MKV2, __VA_ARGS__)
 
 #define PI 3.14159265359f
 #define TAU (2.0f * PI)
@@ -256,10 +267,10 @@
 /*     return (v2) { NAN, NAN }; */
 /* } */
 
-/* // noramlize angle to +/-PI */
-/* ALWAYS_INLINE f32 normalize_angle(f32 a) { */
-/*     return a - (TAU * floorf((a + PI) / TAU)); */
-/* } */
+// noramlize angle to +/-PI
+ALWAYS_INLINE f32 normalize_angle(f32 a) {
+    return a - (TAU * floorf((a + PI) / TAU));
+}
 
 /* // compute inner angle formed by points p1 -> p2 -> p3 */
 /* ALWAYS_INLINE f32 angle_in_points(v2 p1, v2 p2, v2 p3) { */

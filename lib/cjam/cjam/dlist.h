@@ -127,29 +127,6 @@ typedef void (*_dlist_func2_impl)(void*, void*, void*, int);
 
 
 #ifdef CJAM_IMPL
-void _dlist_prepend_impl(void *_list, void *n, int offset) {
-    DLIST(void) *list = _list;
-    DLIST_NODE(void) *fn = n + offset;
-
-    ASSERT(!fn->prev);
-    ASSERT(!fn->next);
-    ASSERT(n != list->head);
-    ASSERT(n != list->tail);
-
-    if (list->head) {
-        DLIST_NODE(void) *fhead = list->head + offset;
-        ASSERT(!fhead->prev);
-        fhead->prev = n;
-    } else {
-        ASSERT(!list->tail);
-        list->tail = n;
-    }
-
-    fn->prev = NULL;
-    fn->next = list->head;
-    list->head = n;
-}
-
 void _dlist_append_impl(void *_list, void *n, int offset) {
     DLIST(void) *list = _list;
     DLIST_NODE(void) *fn = n + offset;
@@ -171,6 +148,29 @@ void _dlist_append_impl(void *_list, void *n, int offset) {
     fn->prev = list->tail;
     fn->next = NULL;
     list->tail = n;
+}
+
+void _dlist_prepend_impl(void *_list, void *n, int offset) {
+    DLIST(void) *list = _list;
+    DLIST_NODE(void) *fn = n + offset;
+
+    ASSERT(!fn->prev);
+    ASSERT(!fn->next);
+    ASSERT(n != list->head);
+    ASSERT(n != list->tail);
+
+    if (list->head) {
+        DLIST_NODE(void) *fhead = list->head + offset;
+        ASSERT(!fhead->prev);
+        fhead->prev = n;
+    } else {
+        ASSERT(!list->tail);
+        list->tail = n;
+    }
+
+    fn->prev = NULL;
+    fn->next = list->head;
+    list->head = n;
 }
 
 void _dlist_remove_impl(void *_list, void *n, int offset) {

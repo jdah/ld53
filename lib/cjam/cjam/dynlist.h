@@ -299,7 +299,8 @@ void *_dynlist_insert_impl(void **plist, int tsize, int index) {
     struct dynlist_header *h = dynlist_header(*plist);
     void *data = h + 1;
 
-    if (index != h->size - 1) {
+    // TODO: this was a bug!!
+    if (index != h->size) {
         memmove(
             data + (tsize * (index + 1)),
             data + (tsize * (index + 0)),

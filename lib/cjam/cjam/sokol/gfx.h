@@ -72,7 +72,6 @@ void cj_batcher_draw(
 
 void cj_batcher_clear(cj_batcher *batcher);
 
-#define CJAM_IMPL
 #ifdef CJAM_IMPL
 
 #include "batch.glsl.h"

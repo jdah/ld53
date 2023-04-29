@@ -1,4 +1,17 @@
+#include "ui.h"
+#include "ui_buy.h"
+#define CJAM_IMPL
+
+#include <cjam/dlist.h>
+#include <cjam/dynlist.h>
+#include <cjam/file.h>
+#include <cjam/rand.h>
+#include <cjam/sound.h>
+#include <cjam/time.h>
+#include <cjam/log.h>
+
 #include "defs.h"
+#include "entity.h"
 #include "font.h"
 #include "level.h"
 #ifdef EMSCRIPTEN
@@ -19,14 +32,6 @@
 #endif // ifdef EMSCRIPTEN
 
 #include <cglm/common.h>
-
-#define CJAM_IMPL
-#include <cjam/dynlist.h>
-#include <cjam/file.h>
-#include <cjam/rand.h>
-#include <cjam/sound.h>
-#include <cjam/time.h>
-#include <cjam/log.h>
 
 #define SOKOL_IMPL
 #define SOKOL_DEBUG
@@ -81,6 +86,7 @@ static void _sg_logger(
 
 
 static void init() {
+    state->time.last_second = time_ns();
 /* #ifdef EMSCRIPTEN */
 /*     const int res = EM_ASM_INT( */
 /*         try { */
@@ -164,18 +170,52 @@ static void init() {
     ASSERT(!gfx_load_image("tile.png", &tile_image));
     gfx_atlas_init(&state->atlas.tile, tile_image, (ivec2s) {{ 8, 8 }});
 
+    sg_image ui_image;
+    ASSERT(!gfx_load_image("ui.png", &ui_image));
+    gfx_atlas_init(&state->atlas.ui, ui_image, (ivec2s) {{ 16, 16 }});
+
+    sg_image icon_image;
+    ASSERT(!gfx_load_image("icon.png", &icon_image));
+    gfx_atlas_init(&state->atlas.icon, icon_image, (ivec2s) {{ 8, 8 }});
+
+    ASSERT(!gfx_load_image("buy_base.png", &state->image.buy_base));
+
     // TODO: multiple levels
     state->level = calloc(1, sizeof(*state->level));
     level_init(state->level);
+
+    state->state = GAME_STATE_BUILD;
 }
 
 static void deinit() {
     gfx_atlas_destroy(&state->atlas.font);
     gfx_atlas_destroy(&state->atlas.tile);
+    gfx_atlas_destroy(&state->atlas.ui);
+    gfx_atlas_destroy(&state->atlas.icon);
     gfx_batcher_destroy(&state->batcher);
 }
 
 static void frame() {
+    const u64 now = time_ns();
+    state->time.delta =
+        state->time.frame_start == 0 ? 16000 : (now - state->time.frame_start);
+    state->time.frame_start = now;
+
+    if (now - state->time.last_second > 1000000000) {
+        state->time.tps = state->time.second_ticks;
+        state->time.second_ticks = 0;
+        state->time.fps = state->time.second_frames;
+        state->time.second_frames = 0;
+        state->time.last_second = now;
+    }
+
+    const u64 tick_time = state->time.delta + state->time.tick_remainder;
+    state->time.frame_ticks = min(tick_time / NS_PER_TICK, TICKS_PER_SECOND);
+    state->time.tick_remainder = tick_time % NS_PER_TICK;
+
+    state->time.second_ticks += state->time.frame_ticks;
+    state->time.second_frames++;
+
     input_update(&state->input);
 
     SDL_Event event;
@@ -189,12 +229,20 @@ static void frame() {
         input_process(&state->input, &event);
     }
 
+    const f32 dt = state->time.delta / 1000000000.0f;
+    level_update(state->level, dt);
+
+    for (u64 i = 0; i < state->time.frame_ticks; i++) {
+        state->time.tick++;
+        level_tick(state->level);
+    }
+
     int w, h;
     SDL_GL_GetDrawableSize(state->window, &w, &h);
 
     sg_begin_pass(offscreen.pass, &offscreen.passaction);
 
-    const f32 time = time_ns() / 1000000.0f;
+    const f64 time = state->time.frame_start / 1000000000.0;
     struct rand rand = rand_create(0x12345);
 
     for (int i = 0; i < 16; i++) {
@@ -217,12 +265,7 @@ static void frame() {
 
     level_draw(state->level);
 
-    font_str(
-        state->input.cursor.pos,
-        Z_UI,
-        COLOR_WHITE,
-        FONT_DOUBLED,
-        "HELLO, $11WORLD!");
+    ui_render();
 
     const ivec2s cursor_tile = level_px_to_tile(state->input.cursor.pos);
     const ivec2s cursor_tile_px =
@@ -239,8 +282,78 @@ static void frame() {
         });
 
     if (input_get(&state->input, "mouse_left") & INPUT_PRESS) {
-        state->level->objects[cursor_tile.x][cursor_tile.y] = OBJECT_TURRET_L0;
+        entity *e = level_new_entity(state->level);
+        e->type = ENTITY_TURRET_L0;
+        entity_set_pos(
+            e,
+            (vec2s) {{
+                cursor_tile.x * TILE_SIZE_PX,
+                cursor_tile.y * TILE_SIZE_PX,
+            }});
     }
+
+    entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
+    dynlist_each(truck->path, it) {
+        gfx_batcher_push_sprite(
+            &state->batcher,
+            &state->atlas.tile,
+            &(gfx_sprite) {
+                .index = {{ 0, 15 }},
+                .pos = {{ it.el->x * TILE_SIZE_PX, it.el->y * TILE_SIZE_PX }},
+                .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
+                .z = Z_UI,
+                .flags = GFX_NO_FLAGS
+            });
+    }
+
+    if (state->state == GAME_STATE_DONE) {
+        const char *text = "GOOD JOB!";
+        const int width = font_width(text);
+        font_str(
+            (ivec2s) {{ (TARGET_SIZE.x - width) / 2, (TARGET_SIZE.y - 4) / 2 }},
+            Z_UI,
+            COLOR_WHITE,
+            FONT_DOUBLED,
+            text);
+    }
+
+    gfx_batcher_push_sprite(
+        &state->batcher,
+        &state->atlas.icon,
+        &(gfx_sprite) {
+            .index = {{ 0, 0 }},
+            .pos = {{ 2, TARGET_SIZE.y - 9 }},
+            .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
+            .z = Z_UI,
+            .flags = GFX_NO_FLAGS
+        });
+
+    font_v(
+        (ivec2s) {{ 2 + 7, TARGET_SIZE.y - 10 }},
+        Z_UI,
+        COLOR_WHITE,
+        FONT_DOUBLED,
+        "%d",
+        100);
+
+    gfx_batcher_push_sprite(
+        &state->batcher,
+        &state->atlas.tile,
+        &(gfx_sprite) {
+            .index = {{ 4, 1 }},
+            .pos = {{ 2, TARGET_SIZE.y - 18 }},
+            .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
+            .z = Z_UI,
+            .flags = GFX_NO_FLAGS
+        });
+
+    font_v(
+        (ivec2s) {{ 2 + 7, TARGET_SIZE.y - 19 }},
+        Z_UI,
+        COLOR_WHITE,
+        FONT_DOUBLED,
+        "%d",
+        100);
 
     const mat4s
         proj = glms_ortho(0.0f, TARGET_SIZE.x, 0.0f, TARGET_SIZE.y, Z_MIN, Z_MAX),

@@ -4,7 +4,6 @@
 
 int cj_sound_init();
 
-#define CJAM_IMPL
 #ifdef CJAM_IMPL
 
 #include "assert.h"
