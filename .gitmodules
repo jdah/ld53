@@ -1,0 +1,12 @@
+[submodule "lib/cute_headers"]
+	path = lib/cute_headers
+	url = https://github.com/RandyGaul/cute_header
+[submodule "lib/sokol-tools-bin"]
+	path = lib/sokol-tools-bin
+	url = https://github.com/floooh/sokol-tools-bin
+[submodule "lib/sokol"]
+	path = lib/sokol
+	url = https://github.com/floooh/sokol
+[submodule "lib/cglm"]
+	path = lib/cglm
+	url = https://github.com/recp/cglm
