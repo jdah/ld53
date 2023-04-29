@@ -6,36 +6,14 @@
 #include "macros.h"
 #include "types.h"
 
-// returns number of written characters excluding null terminator
-int log_fmtap(
-    char *buf,
-    usize n,
-    const char *file,
-    int line,
-    const char *function,
-    const char *prefix,
-    const char *fmt,
-    va_list ap);
-
-// returns number of written characters excluding null terminator
-int log_fmt(
-    char *buf,
-    usize n,
-    const char *file,
-    int line,
-    const char *function,
-    const char *prefix,
-    const char *fmt,
-    ...);
-
-void log_write(
-    const char *file,
-    int line,
-    const char *function,
-    FILE *f,
-    const char *prefix,
-    const char *fmt,
-    ...);
+/* void log_write( */
+/*     const char *file, */
+/*     int line, */
+/*     const char *function, */
+/*     FILE *f, */
+/*     const char *prefix, */
+/*     const char *fmt, */
+/*     ...); */
 
 // format as log message
 #define LOGFMT(_buf, _n, _fmt, ...)                    \
@@ -61,9 +39,7 @@ void log_write(
         __FILE__, __LINE__, __FUNCTION__,              \
         stderr, "ERR", (_fmt), ##__VA_ARGS__)
 
-#ifdef CJAM_IMPL
-
-int log_fmtap(
+ALWAYS_INLINE int log_fmtap(
     char *buf,
     usize n,
     const char *file,
@@ -93,7 +69,7 @@ int log_fmtap(
     return p - buf;
 }
 
-int log_fmt(
+ALWAYS_INLINE int log_fmt(
     char *buf,
     usize n,
     const char *file,
@@ -109,7 +85,7 @@ int log_fmt(
     return res;
 }
 
-void log_write(
+ALWAYS_INLINE void log_write(
     const char *file,
     int line,
     const char *function,
@@ -124,5 +100,3 @@ void log_write(
     va_end(ap);
     fprintf(f, "%s", buf);
 }
-
-#endif // ifdef CJAM_IMPL

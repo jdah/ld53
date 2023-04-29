@@ -15,6 +15,14 @@
 #include <cjam/math.h>
 #include <cjam/map.h>
 
+enum {
+    GFX_NO_FLAGS   = 0,
+    GFX_FLIP_X     = 1 << 0,
+    GFX_FLIP_Y     = 1 << 1,
+    GFX_ROTATE_CW  = 1 << 2,
+    GFX_ROTATE_CCW = 1 << 3,
+};
+
 typedef struct {
     sg_image image;
     ivec2s sprite_size, size_px, size_sprites;
@@ -26,6 +34,7 @@ typedef struct {
     ivec2s index;
     vec4s color;
     f32 z;
+    int flags;
 } gfx_sprite;
 
 typedef struct {
@@ -35,6 +44,7 @@ typedef struct {
     sg_buffer instance_data;
 } gfx_batcher;
 
+int gfx_load_image(const char *resource, sg_image *out);
 void gfx_screenquad(sg_image image);
 
 void gfx_atlas_init(gfx_atlas *atlas, sg_image image, ivec2s sprite_size);
@@ -54,7 +64,8 @@ void gfx_batcher_push_image(
     sg_image image,
     vec2s pos,
     vec4s color,
-    f32 z);
+    f32 z,
+    int flags);
 
 void gfx_batcher_push_subimage(
     gfx_batcher *batcher,
@@ -62,6 +73,7 @@ void gfx_batcher_push_subimage(
     vec2s pos,
     vec4s color,
     f32 z,
+    int flags,
     ivec2s offset,
     ivec2s size);
 

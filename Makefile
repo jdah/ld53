@@ -130,6 +130,7 @@ run: build
 clean:
 	find src/shader -name "*.glsl.h" -type f -delete
 	find src -name "*.o" -type f -delete
+	find src -name "*.d" -type f -delete
 	rm -rf bin
 
 FORCE: ;

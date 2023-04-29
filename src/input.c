@@ -1,4 +1,5 @@
 #include "input.h"
+#include "defs.h"
 
 #include <cjam/time.h>
 #include <cjam/assert.h>
@@ -13,6 +14,20 @@ void input_update(input *input) {
     dynlist_each(input->clear, it) {
         input->buttons[*it.el].state &= ~(INPUT_PRESS | INPUT_RELEASE);
     }
+
+    input->cursor.last_pos = input->cursor.pos;
+
+    ivec2s mouse;
+    SDL_GetMouseState(&mouse.x, &mouse.y);
+    input->cursor.pos = (ivec2s) {{
+        mouse.x * (TARGET_SIZE.x / (f32) WINDOW_SIZE.x),
+        TARGET_SIZE.y - (mouse.y * (TARGET_SIZE.y / (f32) WINDOW_SIZE.y)) - 1,
+    }};
+
+    input->cursor.delta = (ivec2s) {{
+        input->cursor.pos.x - input->cursor.last_pos.x,
+        input->cursor.pos.y - input->cursor.last_pos.y,
+    }};
 }
 
 void input_process(input *input, const SDL_Event *ev) {

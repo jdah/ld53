@@ -1,5 +1,6 @@
-#include <stdio.h>
-
+#include "defs.h"
+#include "font.h"
+#include "level.h"
 #ifdef EMSCRIPTEN
     #include <SDL.h>
     #include <SDL_image.h>
@@ -25,6 +26,7 @@
 #include <cjam/rand.h>
 #include <cjam/sound.h>
 #include <cjam/time.h>
+#include <cjam/log.h>
 
 #define SOKOL_IMPL
 #define SOKOL_DEBUG
@@ -45,13 +47,7 @@
 
 #include "gfx.h"
 #include "input.h"
-
-struct {
-    bool quit;
-    SDL_Window *window;
-    SDL_GLContext *glctx;
-    input input;
-} state;
+#include "state.h"
 
 struct {
     sg_image color, depth;
@@ -83,85 +79,6 @@ static void _sg_logger(
         message_or_null ? message_or_null : "(NULL)");
 }
 
-static int resource_to_path(char *dst, int n, const char *resource) {
-    int res;
-
-#ifdef EMSCRIPTEN
-    res = snprintf(dst, n, "/res/%s", resource);
-#else
-    res = snprintf(dst, n, "res/%s", resource);
-#endif // ifdef EMSCRIPTEN
-
-    return !(res >= 0 && res <= n);
-}
-
-static int load_image(const char *resource, u8 **pdata, ivec2s *psize) {
-    char filepath[1024];
-    resource_to_path(filepath, sizeof(filepath), resource);
-
-    char *filedata;
-    usize filesz;
-    ASSERT(
-        !file_read(filepath, &filedata, &filesz),
-        "failed to read %s",
-        filepath);
-
-    SDL_RWops *rw = SDL_RWFromMem(filedata, filesz);
-    ASSERT(rw);
-
-    SDL_Surface *surf = IMG_LoadPNG_RW(rw);
-    ASSERT(surf);
-    ASSERT(surf->w >= 0 && surf->h >= 0);
-
-    if (surf->format->format != SDL_PIXELFORMAT_RGBA32) {
-        SDL_Surface *newsurf =
-            SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGBA32, 0);
-        SDL_FreeSurface(surf);
-        surf = newsurf;
-    }
-
-    *pdata = malloc(surf->w * surf->h * 4);
-    *psize = (ivec2s) {{ surf->w, surf->h }};
-
-    for (int y = 0; y < surf->h; y++) {
-        memcpy(
-            &(*pdata)[y * (psize->x * 4)],
-            &((u8*) surf->pixels)[(surf->h - y - 1) * (psize->x * 4)],
-            psize->x * 4);
-    }
-
-    SDL_FreeSurface(surf);
-    SDL_FreeRW(rw);
-    CJAM_FREE(filedata);
-
-    return 0;
-}
-
-static int load_sg_image(const char *resource, sg_image *out) {
-    int res;
-    u8 *data;
-    ivec2s size;
-
-    if ((res = load_image(resource, &data, &size))) {
-        return res;
-    }
-
-    *out =
-        sg_make_image(
-            &(sg_image_desc) {
-                .width = size.x,
-                .height = size.y,
-                .data.subimage[0][0] = {
-                    .ptr = data,
-                    .size = (size_t) (size.x * size.y * 4),
-                }
-            });
-    free(data);
-
-    return 0;
-}
-
-sg_image g_image;
 
 static void init() {
 /* #ifdef EMSCRIPTEN */
@@ -187,21 +104,19 @@ static void init() {
 
     /* gfx_sound_init(); */
 
-    input_init(&state.input);
+    input_init(&state->input);
 
     sg_setup(&(sg_desc) {
         .logger = (sg_logger) { .func = _sg_logger }
     });
     assert(sg_isvalid());
 
-    const ivec2s targetsize = {{ 400, 300 }};
-
     offscreen.color =
         sg_make_image(
             &(sg_image_desc) {
                 .render_target = true,
-                .width = targetsize.x,
-                .height = targetsize.y,
+                .width = TARGET_SIZE.x,
+                .height = TARGET_SIZE.y,
                 .pixel_format = SG_PIXELFORMAT_RGBA8,
                 .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
                 .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
@@ -214,8 +129,8 @@ static void init() {
         sg_make_image(
             &(sg_image_desc) {
                 .render_target = true,
-                .width = targetsize.x,
-                .height = targetsize.y,
+                .width = TARGET_SIZE.x,
+                .height = TARGET_SIZE.y,
                 .pixel_format = SG_PIXELFORMAT_DEPTH,
                 .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
                 .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
@@ -235,87 +150,104 @@ static void init() {
     offscreen.passaction = (sg_pass_action) {
         .colors[0] = {
             .action = SG_ACTION_CLEAR,
-            .value = { 1.0f, 0.0f, 1.0f, 1.0f }
+            .value = { 0.0f, 0.0f, 0.0f, 1.0f }
         },
-        /* .depth = { */
-        /*     .action = SG_ACTION_CLEAR, */
-        /*     .value = 1000.0f */
-        /* } */
     };
 
-    u8 *imdata;
-    ivec2s imsize;
-    ASSERT(!load_image("font.png", &imdata, &imsize));
+    gfx_batcher_init(&state->batcher);
 
-    g_image = sg_make_image(&(sg_image_desc) {
-        .width = imsize.x,
-        .height = imsize.y,
-        .data.subimage[0][0] = {
-            .ptr = imdata,
-            .size = (size_t) (imsize.x * imsize.y * 4),
-        }
-    });
-    free(imdata);
+    sg_image font_image;
+    ASSERT(!gfx_load_image("font.png", &font_image));
+    gfx_atlas_init(&state->atlas.font, font_image, (ivec2s) {{ 8, 8 }});
+
+    sg_image tile_image;
+    ASSERT(!gfx_load_image("tile.png", &tile_image));
+    gfx_atlas_init(&state->atlas.tile, tile_image, (ivec2s) {{ 8, 8 }});
+
+    // TODO: multiple levels
+    state->level = calloc(1, sizeof(*state->level));
+    level_init(state->level);
+}
+
+static void deinit() {
+    gfx_atlas_destroy(&state->atlas.font);
+    gfx_atlas_destroy(&state->atlas.tile);
+    gfx_batcher_destroy(&state->batcher);
 }
 
 static void frame() {
-    input_update(&state.input);
+    input_update(&state->input);
 
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
-            state.quit = true;
+            state->quit = true;
             break;
         }
 
-        input_process(&state.input, &event);
-    }
-
-    static bool init;
-    static gfx_atlas atlas;
-    static gfx_batcher batcher;
-
-    if (!init) {
-        init = true;
-        gfx_batcher_init(&batcher);
-
-        sg_image image;
-        ASSERT(!load_sg_image("font.png", &image));
-        gfx_atlas_init(&atlas, image, (ivec2s) {{ 8, 8 }});
+        input_process(&state->input, &event);
     }
 
     int w, h;
-    SDL_GL_GetDrawableSize(state.window, &w, &h);
+    SDL_GL_GetDrawableSize(state->window, &w, &h);
 
     sg_begin_pass(offscreen.pass, &offscreen.passaction);
 
     const f32 time = time_ns() / 1000000.0f;
     struct rand rand = rand_create(0x12345);
 
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 16; i++) {
         const f32
             r = rand_f64(&rand, 20.0f, 30.0f),
             t = rand_f64(&rand, 0.0f, TAU);
 
         gfx_batcher_push_sprite(
-            &batcher,
-            &atlas,
+            &state->batcher,
+            &state->atlas.font,
             &(gfx_sprite) {
                 .index = {{ i % 16, 11 }},
                 .pos = {{ 40 + r * cos(time + t), 40 + r * sin(time + t) }},
                 .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
-                .z = 0.001f
+                .z = Z_UI,
+                .flags = GFX_NO_FLAGS
             });
 
     }
 
+    level_draw(state->level);
+
+    font_str(
+        state->input.cursor.pos,
+        Z_UI,
+        COLOR_WHITE,
+        FONT_DOUBLED,
+        "HELLO, $11WORLD!");
+
+    const ivec2s cursor_tile = level_px_to_tile(state->input.cursor.pos);
+    const ivec2s cursor_tile_px =
+        level_px_round_to_tile(state->input.cursor.pos);
+    gfx_batcher_push_sprite(
+        &state->batcher,
+        &state->atlas.tile,
+        &(gfx_sprite) {
+            .index = {{ 0, 15 }},
+            .pos = {{ cursor_tile_px.x, cursor_tile_px.y }},
+            .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
+            .z = Z_UI,
+            .flags = GFX_NO_FLAGS
+        });
+
+    if (input_get(&state->input, "mouse_left") & INPUT_PRESS) {
+        state->level->objects[cursor_tile.x][cursor_tile.y] = OBJECT_TURRET_L0;
+    }
+
     const mat4s
-        proj = glms_ortho(0.0f, 200.0f, 0.0f, 150.0f, -10.0f, 10.0f),
+        proj = glms_ortho(0.0f, TARGET_SIZE.x, 0.0f, TARGET_SIZE.y, Z_MIN, Z_MAX),
         view = glms_mat4_identity();
 
-    gfx_batcher_draw(&batcher, &proj, &view);
-    gfx_batcher_clear(&batcher);
+    gfx_batcher_draw(&state->batcher, &proj, &view);
+    gfx_batcher_clear(&state->batcher);
 
     sg_end_pass();
     sg_commit();
@@ -331,10 +263,15 @@ static void frame() {
     sg_end_pass();
     sg_commit();
 
-    SDL_GL_SwapWindow(state.window);
+    SDL_GL_SwapWindow(state->window);
 }
 
+// see state->h
+global_state *state;
+
 int main(int argc, char *argv[]) {
+    state = calloc(1, sizeof(*state));
+
     ASSERT(
         !SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO),
         "failed to init SDL: %s", SDL_GetError());
@@ -353,14 +290,14 @@ int main(int argc, char *argv[]) {
     printf("Linked SDL version: %d.%d.%d\n",
            linked.major, linked.minor, linked.patch);
 
-    state.window =
+    state->window =
         SDL_CreateWindow(
             "OUT",
             SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED,
-            800, 600,
+            WINDOW_SIZE.x, WINDOW_SIZE.y,
             SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
-    ASSERT(state.window);
+    ASSERT(state->window);
 
 #ifdef EMSCRIPTEN
     SDL_GL_SetAttribute(
@@ -374,15 +311,15 @@ int main(int argc, char *argv[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 #endif // ifdef EMSCRIPTEN
 
-    state.glctx = SDL_GL_CreateContext(state.window);
-    ASSERT(state.glctx);
+    state->glctx = SDL_GL_CreateContext(state->window);
+    ASSERT(state->glctx);
 
     ASSERT(!glGetError());
 
     printf("GL Version={%s}\n", glGetString(GL_VERSION));
     printf("GLSL Version={%s}\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-    SDL_GL_MakeCurrent(state.window, state.glctx);
+    SDL_GL_MakeCurrent(state->window, state->glctx);
     SDL_GL_SetSwapInterval(0);
 
     init();
@@ -390,11 +327,13 @@ int main(int argc, char *argv[]) {
 #ifdef EMSCRIPTEN
     emscripten_set_main_loop(frame, 0, 1);
 #else
-    while (!state.quit) { frame(); }
+    while (!state->quit) { frame(); }
 #endif // ifdef EMSCRIPTEN
 
-    SDL_GL_DeleteContext(state.glctx);
-    SDL_DestroyWindow(state.window);
+    deinit();
+
+    SDL_GL_DeleteContext(state->glctx);
+    SDL_DestroyWindow(state->window);
     SDL_Quit();
 
     return 0;

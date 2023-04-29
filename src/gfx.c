@@ -1,10 +1,79 @@
 #include "gfx.h"
+#include "util.h"
+#include "sdl.h"
 
 #include <cjam/dynlist.h>
+#include <cjam/file.h>
 
 #define SOKOL_SHDC_IMPL
 #include "shader/batch.glsl.h"
 #include "shader/basic.glsl.h"
+
+static int load_image(const char *resource, u8 **pdata, ivec2s *psize) {
+    char filepath[1024];
+    resource_to_path(filepath, sizeof(filepath), resource);
+
+    char *filedata;
+    usize filesz;
+    ASSERT(
+        !file_read(filepath, &filedata, &filesz),
+        "failed to read %s",
+        filepath);
+
+    SDL_RWops *rw = SDL_RWFromMem(filedata, filesz);
+    ASSERT(rw);
+
+    SDL_Surface *surf = IMG_LoadPNG_RW(rw);
+    ASSERT(surf);
+    ASSERT(surf->w >= 0 && surf->h >= 0);
+
+    if (surf->format->format != SDL_PIXELFORMAT_RGBA32) {
+        SDL_Surface *newsurf =
+            SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGBA32, 0);
+        SDL_FreeSurface(surf);
+        surf = newsurf;
+    }
+
+    *pdata = malloc(surf->w * surf->h * 4);
+    *psize = (ivec2s) {{ surf->w, surf->h }};
+
+    for (int y = 0; y < surf->h; y++) {
+        memcpy(
+            &(*pdata)[y * (psize->x * 4)],
+            &((u8*) surf->pixels)[(surf->h - y - 1) * (psize->x * 4)],
+            psize->x * 4);
+    }
+
+    SDL_FreeSurface(surf);
+    SDL_FreeRW(rw);
+    CJAM_FREE(filedata);
+
+    return 0;
+}
+
+int gfx_load_image(const char *resource, sg_image *out) {
+    int res;
+    u8 *data;
+    ivec2s size;
+
+    if ((res = load_image(resource, &data, &size))) {
+        return res;
+    }
+
+    *out =
+        sg_make_image(
+            &(sg_image_desc) {
+                .width = size.x,
+                .height = size.y,
+                .data.subimage[0][0] = {
+                    .ptr = data,
+                    .size = (size_t) (size.x * size.y * 4),
+                }
+            });
+    free(data);
+
+    return 0;
+}
 
 void gfx_screenquad(sg_image image) {
     static bool init;
@@ -106,6 +175,7 @@ typedef struct {
     vec2s uv_max;
     vec4s color;
     f32 z;
+    f32 flags;
 } gfx_batcher_entry;
 
 typedef struct {
@@ -202,6 +272,11 @@ void gfx_batcher_init(gfx_batcher *batcher) {
                         .offset = offsetof(gfx_batcher_entry, z),
                         .buffer_index = 1,
                     },
+                    [ATTR_batch_vs_a_flags] = {
+                        .format = SG_VERTEXFORMAT_FLOAT,
+                        .offset = offsetof(gfx_batcher_entry, flags),
+                        .buffer_index = 1,
+                    },
                 }
             },
             .colors[0].blend = {
@@ -269,6 +344,11 @@ void gfx_batcher_push_sprite(
     const gfx_atlas *atlas,
     const gfx_sprite *sprite) {
     gfx_batcher_list *list = list_for_image(batcher, atlas->image);
+    // TODO ??
+    /* const vec2s half_px = {{ */
+    /*     (1.0f / atlas->size_px.x) / 8.0f, */
+    /*     (1.0f / atlas->size_px.y) / 8.0f, */
+    /* }}; */
     *dynlist_push(list->entries) = (gfx_batcher_entry) {
         .offset = sprite->pos,
         .scale = {{
@@ -284,7 +364,8 @@ void gfx_batcher_push_sprite(
             (sprite->index.y + 1) * atlas->uv_unit.y,
         }},
         .color = sprite->color,
-        .z = sprite->z
+        .z = sprite->z,
+        .flags = sprite->flags
     };
 }
 
@@ -293,10 +374,11 @@ void gfx_batcher_push_image(
     sg_image image,
     vec2s pos,
     vec4s color,
-    f32 z) {
+    f32 z,
+    int flags) {
     sg_image_desc desc = sg_query_image_desc(image);
     gfx_batcher_push_subimage(
-        batcher, image, pos, color, z,
+        batcher, image, pos, color, z, flags,
         (ivec2s) {{ 0, 0 }},
         (ivec2s) {{ desc.width, desc.height }});
 }
@@ -307,6 +389,7 @@ void gfx_batcher_push_subimage(
     vec2s pos,
     vec4s color,
     f32 z,
+    int flags,
     ivec2s offset,
     ivec2s size) {
     sg_image_desc desc = sg_query_image_desc(image);
@@ -327,7 +410,8 @@ void gfx_batcher_push_subimage(
             (offset.y + (size.y - 1)) * uv_unit.y,
         }},
         .color = color,
-        .z = z
+        .z = z,
+        .flags = flags
     };
 }
 

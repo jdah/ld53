@@ -16,8 +16,11 @@
 // SDL2 input manager
 typedef struct {
     // TODO
-    ivec2 cursor;
-    ivec2 cursormotion;
+    struct {
+        ivec2s pos;
+        ivec2s delta;
+        ivec2s last_pos;
+    } cursor;
 
     union {
         struct {
