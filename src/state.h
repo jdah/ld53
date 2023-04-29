@@ -44,6 +44,11 @@ typedef struct {
         bool unlocked[ENTITY_TYPE_COUNT];
     } stats;
 
+    struct {
+        char desc[256];
+        entity_type place_entity;
+    } ui;
+
     // current game state
     game_state state;
 

@@ -1,5 +1,6 @@
 #include "input.h"
 #include "defs.h"
+#include "level.h"
 
 #include <cjam/time.h>
 #include <cjam/assert.h>
@@ -28,6 +29,13 @@ void input_update(input *input) {
         input->cursor.pos.x - input->cursor.last_pos.x,
         input->cursor.pos.y - input->cursor.last_pos.y,
     }};
+
+    input->cursor.in_level =
+        input->cursor.pos.x < LEVEL_WIDTH * TILE_SIZE_PX
+        && input->cursor.pos.y < LEVEL_HEIGHT * TILE_SIZE_PX;
+
+    input->cursor.tile = level_px_to_tile(input->cursor.pos);
+    input->cursor.tile_px = level_px_round_to_tile(input->cursor.pos);
 }
 
 void input_process(input *input, const SDL_Event *ev) {

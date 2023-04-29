@@ -91,7 +91,7 @@ static void tick_truck(entity *e) {
         /*             next_px.y - e->pos.y */
         /*         }}); */
 
-        /*     const f32 speed = 2.0f; */
+        /*     const f32 speed = 1.0f; */
         /*     entity_set_pos( */
         /*         e, */
         /*         (vec2s) {{ */
@@ -149,35 +149,53 @@ static void draw_turret(entity *e) {
         });
 }
 
+static bool can_place_basic(ivec2s tile) {
+    dlist_each(tile_node, &state->level->tile_entities[tile.x][tile.y], it) {
+        const int flags = ENTITY_INFO[it.el->type].flags;
+        if (!(flags & EIF_DOES_NOT_BLOCK)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
     [ENTITY_TURRET_L0] = {
+        .name = "TURRET MK. 1",
         .base_sprite = {{ 0, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
         .update = update_turret,
         .unlock_price = 0,
         .buy_price = 25,
+        .can_place = can_place_basic,
     },
     [ENTITY_TURRET_L1] = {
+        .name = "TURRET MK. 2",
         .base_sprite = {{ 1, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
         .update = update_turret,
         .unlock_price = 100,
         .buy_price = 50,
+        .can_place = can_place_basic,
     },
     [ENTITY_TURRET_L2] = {
+        .name = "TURRET MK. 3",
         .base_sprite = {{ 2, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
         .update = update_turret,
         .unlock_price = 250,
         .buy_price = 100,
+        .can_place = can_place_basic,
     },
     [ENTITY_BULLET_L0] = {
         .base_sprite = {{ 0, 7 }},
         .draw = draw_basic,
         .update = update_bullet,
+        .flags = EIF_DOES_NOT_BLOCK
     },
     [ENTITY_FLAG] = {
         .base_sprite = {{ 7, 1 }},

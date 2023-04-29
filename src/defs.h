@@ -15,7 +15,7 @@
 #define MS_PER_TICK (1000 / TICKS_PER_SECOND)
 #define NS_PER_TICK (1000000000 / TICKS_PER_SECOND)
 
-#define LEVEL_WIDTH 20
+#define LEVEL_WIDTH 19
 #define LEVEL_HEIGHT (108 / 8)
 #define LEVEL_SIZE ((ivec2s) {{ LEVEL_WIDTH, LEVEL_HEIGHT }})
 
@@ -28,6 +28,7 @@
 #define Z_LEVEL_OVERLAY 0.89f
 #define Z_LEVEL_ENTITY 0.8f
 #define Z_LEVEL_ENTITY_OVERLAY 0.7f
+#define Z_UI_LEVEL_OVERLAY 0.2f
 #define Z_UI 0.0f
 
 #define COLOR_WHITE ((vec4s) {{ 1.0f, 1.0f, 1.0f, 1.0f }})
@@ -73,3 +74,9 @@ typedef enum {
     ENTITY_TRUCK,
     ENTITY_TYPE_COUNT
 } entity_type;
+
+// entity info flags
+enum {
+    EIF_NONE = 0,
+    EIF_DOES_NOT_BLOCK = 1 << 0
+};

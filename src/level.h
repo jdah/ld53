@@ -27,6 +27,7 @@ entity *level_new_entity(level*);
 void level_delete_entity(level*, entity*);
 entity *level_get_entity(level*, entity_id);
 entity *level_find_entity(level*, entity_type);
+bool level_tile_has_entities(level*, ivec2s);
 
 int level_path_default_weight(const level *l, ivec2s p, void*);
 

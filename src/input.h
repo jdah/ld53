@@ -20,6 +20,9 @@ typedef struct {
         ivec2s pos;
         ivec2s delta;
         ivec2s last_pos;
+        ivec2s tile;
+        ivec2s tile_px;
+        bool in_level;
     } cursor;
 
     union {

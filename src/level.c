@@ -243,6 +243,10 @@ entity *level_find_entity(level *l, entity_type type) {
     return NULL;
 }
 
+bool level_tile_has_entities(level *l, ivec2s pos) {
+    return l->tile_entities[pos.x][pos.y].head != NULL;
+}
+
 static hash_type hash_ivec2s(ivec2s v) {
     return ((hash_type) (v.x) << 32) | ((hash_type) (v.y));
 }

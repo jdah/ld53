@@ -1,5 +1,4 @@
 #include "ui.h"
-#include "ui_buy.h"
 #define CJAM_IMPL
 
 #include <cjam/dlist.h>
@@ -185,6 +184,8 @@ static void init() {
     level_init(state->level);
 
     state->state = GAME_STATE_BUILD;
+    state->stats.money = 500;
+    state->stats.health = 100;
 
     for (int i = 0; i < ENTITY_TYPE_COUNT; i++) {
         if (ENTITY_INFO[i].unlock_price == 0) {
@@ -235,6 +236,8 @@ static void frame() {
         input_process(&state->input, &event);
     }
 
+    ui_update();
+
     const f32 dt = state->time.delta / 1000000000.0f;
     level_update(state->level, dt);
 
@@ -271,21 +274,7 @@ static void frame() {
 
     level_draw(state->level);
 
-    ui_render();
-
-    const ivec2s cursor_tile = level_px_to_tile(state->input.cursor.pos);
-    const ivec2s cursor_tile_px =
-        level_px_round_to_tile(state->input.cursor.pos);
-    gfx_batcher_push_sprite(
-        &state->batcher,
-        &state->atlas.tile,
-        &(gfx_sprite) {
-            .index = {{ 0, 15 }},
-            .pos = {{ cursor_tile_px.x, cursor_tile_px.y }},
-            .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
-            .z = Z_UI,
-            .flags = GFX_NO_FLAGS
-        });
+    ui_draw();
 
     /* if (input_get(&state->input, "mouse_left") & INPUT_PRESS) { */
     /*     entity *e = level_new_entity(state->level); */
@@ -322,44 +311,6 @@ static void frame() {
             FONT_DOUBLED,
             text);
     }
-
-    gfx_batcher_push_sprite(
-        &state->batcher,
-        &state->atlas.icon,
-        &(gfx_sprite) {
-            .index = {{ 0, 0 }},
-            .pos = {{ 2, TARGET_SIZE.y - 9 }},
-            .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
-            .z = Z_UI,
-            .flags = GFX_NO_FLAGS
-        });
-
-    font_v(
-        (ivec2s) {{ 2 + 7, TARGET_SIZE.y - 10 }},
-        Z_UI,
-        COLOR_WHITE,
-        FONT_DOUBLED,
-        "%d",
-        100);
-
-    gfx_batcher_push_sprite(
-        &state->batcher,
-        &state->atlas.tile,
-        &(gfx_sprite) {
-            .index = {{ 4, 1 }},
-            .pos = {{ 2, TARGET_SIZE.y - 18 }},
-            .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
-            .z = Z_UI,
-            .flags = GFX_NO_FLAGS
-        });
-
-    font_v(
-        (ivec2s) {{ 2 + 7, TARGET_SIZE.y - 19 }},
-        Z_UI,
-        COLOR_WHITE,
-        FONT_DOUBLED,
-        "%d",
-        100);
 
     const mat4s
         proj = glms_ortho(0.0f, TARGET_SIZE.x, 0.0f, TARGET_SIZE.y, Z_MIN, Z_MAX),

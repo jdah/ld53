@@ -38,12 +38,16 @@ typedef struct entity_s {
 typedef void (*f_entity_draw)(entity*);
 typedef void (*f_entity_tick)(entity*);
 typedef void (*f_entity_update)(entity*, f32);
+typedef bool (*f_entity_can_place)(ivec2s);
 
 typedef struct entity_info_s {
+    const char *name;
     ivec2s base_sprite;
     f_entity_draw draw;
     f_entity_tick tick;
     f_entity_update update;
+    f_entity_can_place can_place;
+    int flags; // EIF_*
     int unlock_price, buy_price;
 } entity_info;
 
