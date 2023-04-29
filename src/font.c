@@ -12,7 +12,7 @@ void font_char(
     int flags,
     char c) {
     if (flags & FONT_DOUBLED) {
-        const f32 diff = -0.3f;
+        const f32 diff = -0.4f;
         font_char(
             (ivec2s) {{ pos.x + 1, pos.y - 1 }},
             z + 0.00001f,

@@ -272,9 +272,10 @@
 /*     return (v2) { NAN, NAN }; */
 /* } */
 
-// noramlize angle to +/-PI
-ALWAYS_INLINE f32 normalize_angle(f32 a) {
-    return a - (TAU * floorf((a + PI) / TAU));
+// noramlize angle to 0, TAU
+ALWAYS_INLINE f32 wrap_angle(f32 a) {
+    a = fmodf(a, TAU);
+    return a < 0 ? (a + TAU) : a;
 }
 
 /* // compute inner angle formed by points p1 -> p2 -> p3 */

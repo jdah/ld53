@@ -183,8 +183,11 @@ static void init() {
     state->level = calloc(1, sizeof(*state->level));
     level_init(state->level);
 
-    state->state = GAME_STATE_BUILD;
-    state->stats.money = 500;
+    entity *alien = level_new_entity(state->level, ENTITY_ALIEN_L0);
+    entity_set_pos(alien, (vec2s) {{ 20, 20 }});
+
+    state_set_stage(state, STAGE_BUILD);
+    state->stats.money = 10000;
     state->stats.health = 100;
 
     for (int i = 0; i < ENTITY_TYPE_COUNT; i++) {
@@ -236,6 +239,14 @@ static void frame() {
         input_process(&state->input, &event);
     }
 
+    // handle state transition
+    if (state->last_stage == STAGE_BUILD
+        && state->stage == STAGE_PLAY) {
+        level_go(state->level);
+    }
+
+    state->last_stage = state->stage;
+
     ui_update();
 
     const f32 dt = state->time.delta / 1000000000.0f;
@@ -251,58 +262,12 @@ static void frame() {
 
     sg_begin_pass(offscreen.pass, &offscreen.passaction);
 
-    const f64 time = state->time.frame_start / 1000000000.0;
-    struct rand rand = rand_create(0x12345);
-
-    for (int i = 0; i < 16; i++) {
-        const f32
-            r = rand_f64(&rand, 20.0f, 30.0f),
-            t = rand_f64(&rand, 0.0f, TAU);
-
-        gfx_batcher_push_sprite(
-            &state->batcher,
-            &state->atlas.font,
-            &(gfx_sprite) {
-                .index = {{ i % 16, 11 }},
-                .pos = {{ 40 + r * cos(time + t), 40 + r * sin(time + t) }},
-                .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
-                .z = Z_UI,
-                .flags = GFX_NO_FLAGS
-            });
-
-    }
-
     level_draw(state->level);
 
     ui_draw();
 
-    /* if (input_get(&state->input, "mouse_left") & INPUT_PRESS) { */
-    /*     entity *e = level_new_entity(state->level); */
-    /*     e->type = ENTITY_TURRET_L0; */
-    /*     entity_set_pos( */
-    /*         e, */
-    /*         (vec2s) {{ */
-    /*             cursor_tile.x * TILE_SIZE_PX, */
-    /*             cursor_tile.y * TILE_SIZE_PX, */
-    /*         }}); */
-    /* } */
-
-    entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
-    dynlist_each(truck->path, it) {
-        gfx_batcher_push_sprite(
-            &state->batcher,
-            &state->atlas.tile,
-            &(gfx_sprite) {
-                .index = {{ 0, 15 }},
-                .pos = {{ it.el->x * TILE_SIZE_PX, it.el->y * TILE_SIZE_PX }},
-                .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
-                .z = Z_UI,
-                .flags = GFX_NO_FLAGS
-            });
-    }
-
-    if (state->state == GAME_STATE_DONE) {
-        const char *text = "PACKAGE DELIVERED!";
+    if (state->stage == STAGE_DONE) {
+        const char *text = " PACKAGE\n$35DELIVERED";
         const int width = font_width(text);
         font_str(
             (ivec2s) {{ (TARGET_SIZE.x - width) / 2, (TARGET_SIZE.y - 4) / 2 }},

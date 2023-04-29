@@ -3,8 +3,10 @@
 #include <cjam/math.h>
 #include <cjam/dlist.h>
 #include <cjam/dynlist.h>
+#include <cjam/aabb.h>
 
 #include "defs.h"
+#include "direction.h"
 
 typedef struct entity_s {
     entity_id id;
@@ -16,11 +18,19 @@ typedef struct entity_s {
 
     union {
         struct {
+            direction dir;
+        } truck;
+        struct {
             f32 angle;
+            entity_id target;
         } turret;
         struct {
             vec2s velocity;
         } bullet;
+        struct {
+            direction dir;
+            int health;
+        } alien;
     };
 
     // path, likely not present
@@ -49,6 +59,24 @@ typedef struct entity_info_s {
     f_entity_can_place can_place;
     int flags; // EIF_*
     int unlock_price, buy_price;
+
+    aabb aabb;
+
+    struct {
+        f32 speed;
+        f32 strength;
+    } alien;
+
+    struct {
+        f32 speed;
+    } bullet;
+
+    struct {
+        entity_type bullet;
+        f32 bps;
+    } turret;
+
+    entity base;
 } entity_info;
 
 void entity_set_pos(entity*, vec2s);

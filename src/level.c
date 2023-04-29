@@ -9,31 +9,35 @@
 #include <cjam/rand.h>
 #include <cjam/map.h>
 
-const char char_to_tile[256] = {
+static const char char_to_tile[256] = {
     ['?'] = TILE_NONE,
     [' '] = TILE_BASE,
+    ['x'] = TILE_BASE,
     ['r'] = TILE_ROAD,
-    ['S'] = TILE_ROAD,
-    ['F'] = TILE_ROAD,
+    ['S'] = TILE_WAREHOUSE_START,
+    ['F'] = TILE_WAREHOUSE_FINISH,
 };
 
-const char char_to_entity[256] = {
-    ['S'] = ENTITY_START_POINT,
-    ['F'] = ENTITY_FLAG,
+static const entity_type char_to_entity[256] = {
+    // ...
+};
+
+static const int char_to_flags[256] = {
+    ['x'] = LTF_ALIEN_SPAWN,
 };
 
 const char *map[LEVEL_HEIGHT] = {
     "              F    ",
-    "              r    ",
-    "              r    ",
-    "              r    ",
+    "   x          r    ",
+    "         x    r    ",
+    "   x          r    ",
     "        rrrrrrr    ",
     "        r          ",
-    "        r          ",
+    "        r   x      ",
     "Srrrrrrrr          ",
     "                   ",
-    "                   ",
-    "                   ",
+    "        x          ",
+    "    x          x   ",
     "                   ",
     "                   ",
 };
@@ -47,25 +51,53 @@ void level_init(level *level) {
     for (int x = 0; x < LEVEL_WIDTH; x++) {
         for (int y = 0; y < LEVEL_HEIGHT; y++) {
             const char c = map[LEVEL_HEIGHT - y - 1][x];
-            level->tiles[x][y] = char_to_tile[(int) c];
+            tile_type tile = char_to_tile[(int) c];
+            level->tiles[x][y] = tile;
+            level->flags[x][y] = char_to_flags[(int) c];
+
+            if (tile == TILE_WAREHOUSE_START) {
+                level->start = IVEC2S(x, y);
+            } else if (tile == TILE_WAREHOUSE_FINISH) {
+                level->finish = IVEC2S(x, y);
+            }
 
             entity_type etype = char_to_entity[(int) c];
             if (etype != ENTITY_TYPE_NONE) {
-                entity *e = level_new_entity(level);
-                e->type = etype;
+                entity *e = level_new_entity(level, etype);
                 entity_set_pos(
                     e,
                     IVEC2S2V(level_tile_to_px((ivec2s) {{ x, y }})));
             }
         }
     }
+}
 
-    entity *start = level_find_entity(level, ENTITY_START_POINT);
-    ASSERT(start, "level has no start");
+bool level_find_near_tile(level *l, ivec2s lpos, tile_type type, ivec2s *out) {
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            const ivec2s pos = {{ lpos.x + x, lpos.y + y }};
+            if (level_tile_in_bounds(pos)
+                && l->tiles[pos.x][pos.y] == type) {
+                *out = pos;
+                return true;
+            }
+        }
+    }
 
-    entity *truck = level_new_entity(level);
-    truck->type = ENTITY_TRUCK;
-    entity_set_pos(truck, IVEC2S2V(level_tile_to_px(start->tile)));
+    return false;
+}
+
+void level_go(level *level) {
+    ivec2s start_road;
+    ASSERT(
+        level_find_near_tile(
+            level,
+            level->start,
+            TILE_ROAD,
+            &start_road));
+
+    entity *truck = level_new_entity(level, ENTITY_TRUCK);
+    entity_set_pos(truck, IVEC2S2V(level_tile_to_px(start_road)));
 }
 
 void level_tick(level *level) {
@@ -101,6 +133,34 @@ void level_update(level *level, f32 dt) {
     }
 }
 
+static void get_surround(
+    const level *level,
+    ivec2s lpos,
+    tile_type *types,
+    int n_types,
+    bool oob_value,
+    bool surround[3][3]) {
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            const ivec2s pos = {{ lpos.x + x, lpos.y + y }};
+            if (level_tile_in_bounds(pos)) {
+                const tile_type type =
+                    level->tiles[pos.x][pos.y];
+
+                surround[x + 1][y + 1] = false;
+                for (int i = 0; i < n_types; i++) {
+                    if (types[i] == type) {
+                        surround[x + 1][y + 1] = true;
+                        break;
+                    }
+                }
+            } else {
+                surround[x + 1][y + 1] = oob_value;
+            }
+        }
+    }
+}
+
 static void tile_draw(
     const level *level, ivec2s lpos, tile_type tile) {
     ivec2s index = {{ 0, 0 }};
@@ -120,17 +180,13 @@ static void tile_draw(
         tile_draw(level, lpos, TILE_BASE);
 
         bool surround[3][3];
-        for (int x = -1; x <= 1; x++) {
-            for (int y = -1; y <= 1; y++) {
-                const ivec2s pos = {{ lpos.x + x, lpos.y + y }};
-                if (level_tile_in_bounds(pos)) {
-                    surround[x + 1][y + 1] =
-                        level->tiles[pos.x][pos.y] == TILE_ROAD;
-                } else {
-                    surround[x + 1][y + 1] = true;
-                }
-            }
-        }
+        get_surround(
+            level, lpos,
+            (tile_type[]) {
+                TILE_ROAD,
+                TILE_WAREHOUSE_START,
+                TILE_WAREHOUSE_FINISH,
+            }, 3, true, surround);
 
         ivec2s offset;
         if (surround[1][0] && surround[2][1]) {
@@ -157,6 +213,26 @@ static void tile_draw(
             0 + offset.x,
             1 + offset.y
         }};
+        z = Z_LEVEL_OVERLAY;
+    } break;
+    case TILE_WAREHOUSE_START:
+    case TILE_WAREHOUSE_FINISH: {
+        const ivec2s base =
+            tile == TILE_WAREHOUSE_START ? IVEC2S(4, 3) : IVEC2S(4, 2);
+        ivec2s offset = IVEC2S(0);
+
+        bool surround[3][3];
+        get_surround(level, lpos, (tile_type[]) { TILE_ROAD }, 1, false, surround);
+        bool do_road = true;
+
+        if (surround[0][1]) { offset = IVEC2S(0, 0); }
+        else if (surround[2][1]) { offset = IVEC2S(1, 0); }
+        else if (surround[1][2]) { offset = IVEC2S(2, 0); }
+        else if (surround[1][0]) { offset = IVEC2S(3, 0); do_road = false; }
+
+        tile_draw(level, lpos, do_road ? TILE_ROAD : TILE_BASE);
+
+        index = glms_ivec2_add(base, offset);
         z = Z_LEVEL_OVERLAY;
     } break;
     }
@@ -186,7 +262,7 @@ void level_draw(const level *level) {
     }
 }
 
-entity *level_new_entity(level *level) {
+entity *level_new_entity(level *level, entity_type type) {
     int n = 0, i = level->last_free_entity;
     while (n < MAX_ENTITIES) {
         if (!level->entities[i].id.present) {
@@ -200,6 +276,9 @@ entity *level_new_entity(level *level) {
     entity *e = &level->entities[i];
     const u16 old_gen = e->id.gen;
     memset(e, 0, sizeof(*e));
+    const entity_info *info = &ENTITY_INFO[type];
+    memcpy(e, &info->base, sizeof(*e));
+    e->type = type;
     e->id = (entity_id) {
         .present = true,
         .gen = old_gen + 1,
@@ -238,6 +317,46 @@ entity *level_find_entity(level *l, entity_type type) {
         if (it.el->type == type) {
             return it.el;
         }
+    }
+
+    return NULL;
+}
+
+entity *level_find_nearest_entity(level *l, ivec2s pos, bool (*filter)(entity*)) {
+    ivec2s offset = {{ 0, 0 }};
+    int i = 0, leg = 0, layer = 0;
+    while (i < 1024) {
+        dlist_each(tile_node, &l->tile_entities[pos.x][pos.y], it) {
+            if (filter(it.el)) {
+                return it.el;
+            }
+        }
+
+        switch (leg) {
+        case 0:
+            pos.y++;
+            offset.y++;
+            if (+offset.y == layer || pos.y >= LEVEL_HEIGHT) { leg++; }
+            break;
+        case 1:
+            pos.x++; offset.x++;
+            if (+offset.x == layer || pos.x >= LEVEL_WIDTH) { leg++; }
+            break;
+        case 2:
+            pos.y--; offset.y--;
+            if (-offset.y == layer || pos.y < 0) { leg++; }
+            break;
+        case 3:
+            pos.x--; offset.x--;
+            if (-offset.x == layer || pos.x < 0) { leg = 0; layer++; }
+            break;
+        }
+
+        pos = (ivec2s) {{
+            clamp(pos.x, 0, LEVEL_WIDTH - 1),
+            clamp(pos.y, 0, LEVEL_HEIGHT - 1),
+        }};
+        i++;
     }
 
     return NULL;

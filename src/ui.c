@@ -9,16 +9,22 @@
 
 #include <stdarg.h>
 
-#include <cjam/box.h>
+#include <cjam/aabb.h>
 
 #define GRID_WIDTH 3
 #define GRID_HEIGHT 5
 #define GRID_SIZE ((ivec2s) {{ GRID_WIDTH, GRID_HEIGHT }})
 
-static const entity_type entities[GRID_WIDTH][GRID_HEIGHT] = {
+static const entity_type buy_entities[GRID_WIDTH][GRID_HEIGHT] = {
     [0][GRID_HEIGHT - 1] = ENTITY_TURRET_L0,
     [1][GRID_HEIGHT - 1] = ENTITY_TURRET_L1,
     [2][GRID_HEIGHT - 1] = ENTITY_TURRET_L2,
+    [0][GRID_HEIGHT - 2] = ENTITY_MINE_L0,
+    [1][GRID_HEIGHT - 2] = ENTITY_MINE_L1,
+    [2][GRID_HEIGHT - 2] = ENTITY_MINE_L2,
+    [0][GRID_HEIGHT - 3] = ENTITY_RADAR_L0,
+    [1][GRID_HEIGHT - 3] = ENTITY_RADAR_L1,
+    [2][GRID_HEIGHT - 3] = ENTITY_BOOMBOX,
 };
 
 static ivec2s get_pos_base() {
@@ -38,9 +44,9 @@ static ivec2s get_pos_grid(ivec2s index) {
     }};
 }
 
-static box get_box_grid(ivec2s index) {
+static aabb get_aabb_grid(ivec2s index) {
     const ivec2s pos = get_pos_grid(index);
-    return BOX_PS(pos, ((ivec2s) {{ 12, 12 }}));
+    return AABB_PS(pos, ((ivec2s) {{ 12, 12 }}));
 }
 
 static ivec2s get_pos_button() {
@@ -51,9 +57,9 @@ static ivec2s get_pos_button() {
     }};
 }
 
-static box get_box_button() {
+static aabb get_aabb_button() {
     const ivec2s pos = get_pos_button();
-    return BOX_PS(
+    return AABB_PS(
         ((ivec2s) {{ pos.x + 1, pos.y + 1 }}),
         ((ivec2s) {{ 38, 10 }}));
 }
@@ -64,11 +70,11 @@ bool update_sidebar() {
     for (int y = 0; y < GRID_SIZE.y; y++) {
         for (int x = 0; x < GRID_SIZE.x; x++) {
             const ivec2s index = {{ x, y }};
-            if (!box_contains(get_box_grid(index), state->input.cursor.pos)) {
+            if (!aabb_contains(get_aabb_grid(index), state->input.cursor.pos)) {
                 continue;
             }
 
-            const entity_type entity = entities[index.x][index.y];
+            const entity_type entity = buy_entities[index.x][index.y];
             entity_info *info = &ENTITY_INFO[entity];
 
             if (info->name) {
@@ -94,16 +100,27 @@ bool update_sidebar() {
                 continue;
             }
 
-            // TODO: sound
-            if (unlocked) {
-                state->ui.place_entity = entity;
-                LOG("selected %d", entity);
-                return true;
-            } else {
+            if (!unlocked) {
+                // TODO: sound
                 state->stats.unlocked[entity] = true;
                 state->stats.money -= price;
-                return true;
             }
+
+            state->ui.place_entity = entity;
+            LOG("placing %d", entity);
+            return true;
+        }
+    }
+
+    // button
+    {
+        const bool highlight =
+            aabb_contains(get_aabb_button(), state->input.cursor.pos);
+
+        if (highlight
+            && state->stage == STAGE_BUILD
+            && select) {
+            state_set_stage(state, STAGE_PLAY);
         }
     }
 
@@ -124,17 +141,17 @@ static bool update_cursor() {
             const bool
                 in_level = state->input.cursor.in_level,
                 can_place =
-                    !info->can_place
-                        || info->can_place(state->input.cursor.tile);
+                    in_level &&
+                    (!info->can_place || info->can_place(state->input.cursor.tile));
 
             if (in_level && can_place) {
                 // TODO: happy sound
                 state->stats.money -= info->buy_price;
 
-                entity *e = level_new_entity(state->level);
-                e->type = state->ui.place_entity;
+                entity *e = level_new_entity(state->level, state->ui.place_entity);
                 entity_set_pos(e, IVEC2S2V(state->input.cursor.tile_px));
             } else if (!in_level) {
+                LOG("cancelling placing %d, out of level", state->ui.place_entity);
                 state->ui.place_entity = ENTITY_TYPE_NONE;
             }
 
@@ -177,9 +194,9 @@ static void draw_sidebar() {
             const ivec2s index = {{ x, y }};
             const ivec2s pos = get_pos_grid((ivec2s) {{ x, y }});
             const bool highlight =
-                box_contains(get_box_grid(index), state->input.cursor.pos);
+                aabb_contains(get_aabb_grid(index), state->input.cursor.pos);
 
-            const entity_type entity = entities[index.x][index.y];
+            const entity_type entity = buy_entities[index.x][index.y];
             entity_info *info = &ENTITY_INFO[entity];
 
             const bool unlocked = state->stats.unlocked[entity];
@@ -258,12 +275,12 @@ static void draw_sidebar() {
     // button
     {
         const bool highlight =
-            box_contains(get_box_button(), state->input.cursor.pos);
+            aabb_contains(get_aabb_button(), state->input.cursor.pos);
         const char *text;
         ivec2s offset, pos = get_pos_button();
         vec4s color;
 
-        if (state->state == GAME_STATE_BUILD) {
+        if (state->stage == STAGE_BUILD) {
             text = "GO!";
             offset = (ivec2s) {{ 0, 16 }};
             color = GRAYSCALE(highlight ? 1.5f : 1.0f, 1.0f);
@@ -309,7 +326,7 @@ static void draw_stats() {
         });
 
     font_v(
-        (ivec2s) {{ 2 + 7, TARGET_SIZE.y - 10 }},
+        (ivec2s) {{ 2 + 9, TARGET_SIZE.y - 10 }},
         Z_UI,
         COLOR_WHITE,
         FONT_DOUBLED,
@@ -321,19 +338,19 @@ static void draw_stats() {
         &state->atlas.tile,
         &(gfx_sprite) {
             .index = {{ 4, 1 }},
-            .pos = {{ 2, TARGET_SIZE.y - 18 }},
+            .pos = {{ 2, TARGET_SIZE.y - 19 }},
             .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
             .z = Z_UI,
             .flags = GFX_NO_FLAGS
         });
 
     font_v(
-        (ivec2s) {{ 2 + 7, TARGET_SIZE.y - 19 }},
+        (ivec2s) {{ 2 + 9, TARGET_SIZE.y - 19 }},
         Z_UI,
         COLOR_WHITE,
         FONT_DOUBLED,
         "%d",
-        state->stats.health);
+        (int) state->stats.health);
 }
 
 static void draw_overlay() {

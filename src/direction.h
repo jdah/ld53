@@ -55,6 +55,13 @@ typedef enum {
     DIRECTION_FLAG_DOWN_RIGHT = DIRECTION_FLAG_SOUTHWEST,
 } direction_flags;
 
+ALWAYS_INLINE direction direction_from_vec2s(vec2s v, direction if_zero) {
+    if (glms_vec2_norm(v) < 0.00000001f) { return if_zero; }
+    return fabs(v.x) > fabs(v.y) ?
+        (v.x > 0.0f ? DIRECTION_WEST : DIRECTION_EAST)
+        : (v.y > 0.0f ? DIRECTION_UP : DIRECTION_DOWN);
+}
+
 ALWAYS_INLINE ivec2s direction_to_ivec2s(direction d) {
     return (
         (ivec2s[DIRECTION_CARDINAL_COUNT]) {

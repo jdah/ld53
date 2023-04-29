@@ -1,5 +1,7 @@
 #pragma once
 
+// PRECIOUS CARGO (AND SCARY ALIENS WHO WANT TO TAKE IT!)
+
 #include <cjam/types.h>
 
 // IMPORTANT: CHANGE BEFORE SUBMIT
@@ -35,25 +37,20 @@
 #define COLOR_BLACK ((vec4s) {{ 0.0f, 0.0f, 0.0f, 0.0f }})
 
 typedef enum {
-    GAME_STATE_MAIN_MENU,
-    GAME_STATE_BUILD,
-    GAME_STATE_PLAY,
-    GAME_STATE_DONE,
-} game_state;
+    STAGE_MAIN_MENU,
+    STAGE_BUILD,
+    STAGE_PLAY,
+    STAGE_DONE,
+} stage;
 
 typedef enum {
     TILE_NONE = 0,
     TILE_BASE,
     TILE_ROAD,
+    TILE_WAREHOUSE_START,
+    TILE_WAREHOUSE_FINISH,
     TILE_COUNT
 } tile_type;
-
-typedef enum {
-    OBJECT_NONE = 0,
-    OBJECT_TURRET_L0,
-    OBJECT_TURRET_L1,
-    OBJECT_COUNT
-} object_type;
 
 typedef struct {
     bool present: 1;
@@ -68,15 +65,32 @@ typedef enum {
     ENTITY_TURRET_L0,
     ENTITY_TURRET_L1,
     ENTITY_TURRET_L2,
+    ENTITY_MINE_L0,
+    ENTITY_MINE_L1,
+    ENTITY_MINE_L2,
+    ENTITY_RADAR_L0,
+    ENTITY_RADAR_L1,
     ENTITY_BULLET_L0,
+    ENTITY_BULLET_L1,
+    ENTITY_BULLET_L2,
+    ENTITY_BULLET_L3,
+    ENTITY_BOOMBOX,
     ENTITY_START_POINT,
     ENTITY_FLAG,
     ENTITY_TRUCK,
+    ENTITY_ALIEN_L0,
     ENTITY_TYPE_COUNT
 } entity_type;
 
 // entity info flags
 enum {
     EIF_NONE = 0,
-    EIF_DOES_NOT_BLOCK = 1 << 0
+    EIF_DOES_NOT_BLOCK = 1 << 0,
+    EIF_ALIEN = 1 << 1
+};
+
+// level tile flags
+enum {
+    LTF_NONE = 0,
+    LTF_ALIEN_SPAWN = 1 << 0
 };

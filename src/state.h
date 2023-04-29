@@ -39,7 +39,7 @@ typedef struct {
 
     struct {
         int money;
-        int health;
+        f32 health;
 
         bool unlocked[ENTITY_TYPE_COUNT];
     } stats;
@@ -50,9 +50,15 @@ typedef struct {
     } ui;
 
     // current game state
-    game_state state;
+    stage stage, last_stage;
 
     level *level;
 } global_state;
 
 extern global_state *state;
+
+ALWAYS_INLINE void state_set_stage(global_state *s, stage stage) {
+    LOG("from stage %d -> %d", s->stage, stage);
+    s->stage = stage;
+}
+

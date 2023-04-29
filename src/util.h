@@ -21,3 +21,12 @@ ALWAYS_INLINE int resource_to_path(char *dst, int n, const char *resource) {
 
     return !(res >= 0 && res <= n);
 }
+
+ALWAYS_INLINE int ticked_float_to_int(u64 ticks, f32 f) {
+    int i = (int) floorf(fabsf(f));
+    f32 g = fabsf(f) - i;
+    int j =
+        fabsf(g) > 0.001f
+            && ((ticks % (int) (1.0f / fabsf(g))) == 0) ? 1 : 0;
+    return (int) (sign(f) * (i + j));
+}
