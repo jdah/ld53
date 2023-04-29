@@ -20,6 +20,11 @@
 #define MKV20() ((vec2s) {{ 0, 0 }})
 #define VEC2S(...) VFUNC(MKV2, __VA_ARGS__)
 
+#define MKV44(_x, _y, _z, _w) ((vec4s) {{ (_x), (_y), (_z), (_w) }})
+#define MKV41(_s) ({ __typeof__(_s) __s = (_s); ((vec4s) {{ __s, __s, __s, __s }}); })
+#define MKV40() ((vec4s) {{ 0, 0 }})
+#define VEC4S(...) VFUNC(MKV4, __VA_ARGS__)
+
 #define PI 3.14159265359f
 #define TAU (2.0f * PI)
 #define PI_2 (PI / 2.0f)

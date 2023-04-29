@@ -6,11 +6,11 @@
 
 #define BOXI2F(_a)                                                      \
     ({ TYPEOF(_a) __a = (_a);                                           \
-       (boxf) { AS_V2(__a.min), vec2s_add(AS_V2(__a.max), V2(1)) }; })
+       (boxf) { AS_VEC2S(__a.min), vec2s_add(AS_VEC2S(__a.max), VEC2S(1)) }; })
 
 #define BOXF2I(_a)                                                      \
     ({ TYPEOF(_a) __a = (_a);                                           \
-       (box) { AS_V2I(__a.min), AS_V2I(__a.max) }; })
+       (box) { AS_IVEC2S(__a.min), AS_IVEC2S(__a.max) }; })
 
 // 2D float box
 typedef struct {
@@ -25,8 +25,8 @@ typedef struct {
 #define BOXF_MM(_mi, _ma) ((boxf) { (_mi), (_ma) })
 #define BOX_MM(_mi, _ma) ((box) { (_mi), (_ma) })
 
-#define BOXF_M(_ma) ((boxf) { V2(0), (_ma) })
-#define BOX_M(_ma) ((box) { V2I(0), (_ma) })
+#define BOXF_M(_ma) ((boxf) { VEC2S(0), (_ma) })
+#define BOX_M(_ma) ((box) { IVEC2S(0), (_ma) })
 
 #define BOXF_PS(_pos, _size) ({                                      \
         const vec2s __pos = (_pos);                                     \
@@ -35,7 +35,7 @@ typedef struct {
 
 #define BOX_PS(_pos, _size) ({                                       \
         const ivec2s __pos = (_pos);                                    \
-        ((box) { __pos, glms_ivec2_add(__pos, glms_ivec2s_sub((_size), V2I(1))) }); \
+        ((box) { __pos, glms_ivec2_add(__pos, glms_ivec2_sub((_size), IVEC2S(1))) }); \
     })
 
 #define BOXF_CH(_center, _half) ({                                   \
@@ -45,7 +45,7 @@ typedef struct {
 
 #define BOX_CH(_center, _half) ({                                    \
         const vec2s __c = (_center), __h = (_half);                     \
-        ((box) { glms_ivec2s_sub(__c, __h), glms_ivec2_add(__c, __h)});             \
+        ((box) { glms_ivec2_sub(__c, __h), glms_ivec2_add(__c, __h)});             \
     })
 
 // returns true if box contains p

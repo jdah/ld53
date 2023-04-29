@@ -37,6 +37,13 @@ typedef struct {
         u64 tick;
     } time;
 
+    struct {
+        int money;
+        int health;
+
+        bool unlocked[ENTITY_TYPE_COUNT];
+    } stats;
+
     // current game state
     game_state state;
 

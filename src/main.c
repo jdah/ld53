@@ -185,6 +185,12 @@ static void init() {
     level_init(state->level);
 
     state->state = GAME_STATE_BUILD;
+
+    for (int i = 0; i < ENTITY_TYPE_COUNT; i++) {
+        if (ENTITY_INFO[i].unlock_price == 0) {
+            state->stats.unlocked[i] = true;
+        }
+    }
 }
 
 static void deinit() {
@@ -281,16 +287,16 @@ static void frame() {
             .flags = GFX_NO_FLAGS
         });
 
-    if (input_get(&state->input, "mouse_left") & INPUT_PRESS) {
-        entity *e = level_new_entity(state->level);
-        e->type = ENTITY_TURRET_L0;
-        entity_set_pos(
-            e,
-            (vec2s) {{
-                cursor_tile.x * TILE_SIZE_PX,
-                cursor_tile.y * TILE_SIZE_PX,
-            }});
-    }
+    /* if (input_get(&state->input, "mouse_left") & INPUT_PRESS) { */
+    /*     entity *e = level_new_entity(state->level); */
+    /*     e->type = ENTITY_TURRET_L0; */
+    /*     entity_set_pos( */
+    /*         e, */
+    /*         (vec2s) {{ */
+    /*             cursor_tile.x * TILE_SIZE_PX, */
+    /*             cursor_tile.y * TILE_SIZE_PX, */
+    /*         }}); */
+    /* } */
 
     entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
     dynlist_each(truck->path, it) {
@@ -307,7 +313,7 @@ static void frame() {
     }
 
     if (state->state == GAME_STATE_DONE) {
-        const char *text = "GOOD JOB!";
+        const char *text = "PACKAGE DELIVERED!";
         const int width = font_width(text);
         font_str(
             (ivec2s) {{ (TARGET_SIZE.x - width) / 2, (TARGET_SIZE.y - 4) / 2 }},

@@ -15,7 +15,7 @@ void font_char(
         const f32 diff = -0.3f;
         font_char(
             (ivec2s) {{ pos.x + 1, pos.y - 1 }},
-            z + 0.001f,
+            z + 0.00001f,
             (vec4s) {{
                 clamp(col.r + diff, 0.0f, 1.0f),
                 clamp(col.g + diff, 0.0f, 1.0f),

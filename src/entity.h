@@ -35,7 +35,21 @@ typedef struct entity_s {
     DLIST_NODE(struct entity_s) tile_node;
 } entity;
 
+typedef void (*f_entity_draw)(entity*);
+typedef void (*f_entity_tick)(entity*);
+typedef void (*f_entity_update)(entity*, f32);
+
+typedef struct entity_info_s {
+    ivec2s base_sprite;
+    f_entity_draw draw;
+    f_entity_tick tick;
+    f_entity_update update;
+    int unlock_price, buy_price;
+} entity_info;
+
 void entity_set_pos(entity*, vec2s);
 void entity_tick(entity*);
 void entity_update(entity*, f32 dt);
 void entity_draw(entity*);
+
+extern entity_info ENTITY_INFO[ENTITY_TYPE_COUNT];

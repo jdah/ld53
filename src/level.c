@@ -23,19 +23,19 @@ const char char_to_entity[256] = {
 };
 
 const char *map[LEVEL_HEIGHT] = {
-    "              F         ",
-    "              r         ",
-    "              r         ",
-    "              r         ",
-    "        rrrrrrr         ",
-    "        r               ",
-    "        r               ",
-    "Srrrrrrrr               ",
-    "                        ",
-    "                        ",
-    "                        ",
-    "                        ",
-    "                        ",
+    "              F    ",
+    "              r    ",
+    "              r    ",
+    "              r    ",
+    "        rrrrrrr    ",
+    "        r          ",
+    "        r          ",
+    "Srrrrrrrr          ",
+    "                   ",
+    "                   ",
+    "                   ",
+    "                   ",
+    "                   ",
 };
 
 void level_init(level *level) {
@@ -73,7 +73,14 @@ void level_tick(level *level) {
 
     dlist_each(node, &level->all_entities, it) {
         ASSERT(!it.el->delete);
-        entity_tick(it.el);
+
+        f_entity_tick f_tick = ENTITY_INFO[it.el->type].tick;
+        if (f_tick) { f_tick(it.el); }
+
+        if (!level_px_in_bounds(it.el->px)
+            || !level_tile_in_bounds(it.el->tile)) {
+            it.el->delete = true;
+        }
 
         if (it.el->delete) {
             *dynlist_push(delete_entities) = it.el;
@@ -89,7 +96,8 @@ void level_tick(level *level) {
 
 void level_update(level *level, f32 dt) {
     dlist_each(node, &level->all_entities, it) {
-        entity_update(it.el, dt);
+        f_entity_update f_update = ENTITY_INFO[it.el->type].update;
+        if (f_update) { f_update(it.el, dt); }
     }
 }
 
@@ -173,7 +181,8 @@ void level_draw(const level *level) {
     }
 
     dlist_each(node, &level->all_entities, it) {
-        entity_draw(it.el);
+        f_entity_draw f_draw = ENTITY_INFO[it.el->type].draw;
+        if (f_draw) { f_draw(it.el); }
     }
 }
 
