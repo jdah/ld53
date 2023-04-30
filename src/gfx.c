@@ -406,8 +406,8 @@ void gfx_batcher_push_subimage(
             offset.y * uv_unit.y,
         }},
         .uv_max = {{
-            (offset.x + (size.x - 1)) * uv_unit.x,
-            (offset.y + (size.y - 1)) * uv_unit.y,
+            (offset.x + (size.x - 0)) * uv_unit.x,
+            (offset.y + (size.y - 0)) * uv_unit.y,
         }},
         .color = color,
         .z = z,

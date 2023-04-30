@@ -1,3 +1,6 @@
+#include "palette.h"
+#include "title.h"
+#include "util.h"
 #define CJAM_IMPL
 
 #include <cjam/dlist.h>
@@ -86,6 +89,10 @@ static void _sg_logger(
 
 
 static void init() {
+#ifdef HACKS
+    state->hacks = true;
+#endif
+
     state->time.last_second = time_ns();
 /* #ifdef EMSCRIPTEN */
 /*     const int res = EM_ASM_INT( */
@@ -153,13 +160,6 @@ static void init() {
                 .label = "offscreen-pass"
             });
 
-    offscreen.passaction = (sg_pass_action) {
-        .colors[0] = {
-            .action = SG_ACTION_CLEAR,
-            .value = { 0.0f, 0.0f, 0.0f, 1.0f }
-        },
-    };
-
     gfx_batcher_init(&state->batcher);
 
     sg_image font_image;
@@ -179,22 +179,9 @@ static void init() {
     gfx_atlas_init(&state->atlas.icon, icon_image, (ivec2s) {{ 8, 8 }});
 
     ASSERT(!gfx_load_image("buy_base.png", &state->image.buy_base));
+    ASSERT(!gfx_load_image("logo.png", &state->image.logo));
 
-    // TODO: multiple levels
-    state->level = calloc(1, sizeof(*state->level));
-    level_init(state->level, &LEVELS[0]);
-
-    entity *alien = level_new_entity(state->level, ENTITY_ALIEN_L0);
-    entity_set_pos(alien, (vec2s) {{ 20, 20 }});
-
-    state_set_stage(state, STAGE_BUILD);
-    state->stats.money = 10000;
-
-    for (int i = 0; i < ENTITY_TYPE_COUNT; i++) {
-        if (ENTITY_INFO[i].unlock_price == 0) {
-            state->stats.unlocked[i] = true;
-        }
-    }
+    state_set_stage(state, STAGE_MAIN_MENU);
 }
 
 static void deinit() {
@@ -206,6 +193,26 @@ static void deinit() {
 }
 
 static void frame() {
+    if (state->hacks) {
+        const bool skip = input_get(&state->input, "1") & INPUT_PRESS;
+        if (skip) {
+            if (state->stage == STAGE_MAIN_MENU) {
+                state_set_stage(state, STAGE_TITLE);
+                state_set_level(state, 0);
+            } else if (state->stage == STAGE_TITLE) {
+                state_set_stage(state, STAGE_BUILD);
+            } else if (state->stage == STAGE_PLAY) {
+                // warp truck
+                entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
+                if (truck) {
+                    entity_set_pos(
+                        truck,
+                        IVEC2S2V(level_tile_to_px(state->level->finish)));
+                }
+            }
+        }
+    }
+
     const u64 now = time_ns();
     state->time.delta =
         state->time.frame_start == 0 ? 16000 : (now - state->time.frame_start);
@@ -241,7 +248,21 @@ static void frame() {
 
     // handle state transition
     if (state->last_stage != state->stage) {
+        if (state->last_stage == STAGE_MAIN_MENU
+            && state->stage == STAGE_TITLE) {
+            memset(&state->stats, 0, sizeof(state->stats));
+            state->stats.money = START_MONEY;
+            state->stats.truck_health = MAX_TRUCK_HEALTH;
+
+            for (int i = 0; i < ENTITY_TYPE_COUNT; i++) {
+                if (ENTITY_INFO[i].unlock_price == 0) {
+                    state->stats.unlocked[i] = true;
+                }
+            }
+        }
+
         state->cursor_mode = CURSOR_MODE_DEFAULT;
+        state->done_screen_state = 0;
 
         // TODO: clear particles?
         /* dynlist_resize(state->particles, 0); */
@@ -254,21 +275,28 @@ static void frame() {
 
     state->last_stage = state->stage;
 
-    ui_update();
+    if (state->stage == STAGE_MAIN_MENU) {
+        main_menu_update(&state->_main_menu);
+    } else {
+        ui_update();
 
-    const f32 dt = state->time.delta / 1000000000.0f;
-    level_update(state->level, dt);
+        const f32 dt = state->time.delta / 1000000000.0f;
+        level_update(state->level, dt);
+    }
 
     for (u64 i = 0; i < state->time.frame_ticks; i++) {
         state->time.tick++;
-        level_tick(state->level);
 
-        // tick particles
-        dynlist_each(state->particles, it) {
-            particle_tick(it.el);
+        if (state->stage != STAGE_MAIN_MENU) {
+            level_tick(state->level);
 
-            if (it.el->delete) {
-                dynlist_remove_it(state->particles, it);
+            // tick particles
+            dynlist_each(state->particles, it) {
+                particle_tick(it.el);
+
+                if (it.el->delete) {
+                    dynlist_remove_it(state->particles, it);
+                }
             }
         }
     }
@@ -276,26 +304,29 @@ static void frame() {
     int w, h;
     SDL_GL_GetDrawableSize(state->window, &w, &h);
 
+    offscreen.passaction = (sg_pass_action) {
+        .colors[0] = {
+            .action = SG_ACTION_CLEAR,
+            .value = { state->clear_color.r, state->clear_color.g, state->clear_color.b, 1.0f }
+        },
+    };
+
     sg_begin_pass(offscreen.pass, &offscreen.passaction);
 
-    level_draw(state->level);
+    if (state->stage == STAGE_MAIN_MENU) {
+        main_menu_draw(&state->_main_menu);
+    } else if (state->stage == STAGE_TITLE) {
+        title_draw();
+    } else {
+        state->clear_color = COLOR_BLACK;
+        level_draw(state->level);
 
-    // draw particles
-    dynlist_each(state->particles, it) {
-        particle_draw(it.el);
-    }
+        // draw particles
+        dynlist_each(state->particles, it) {
+            particle_draw(it.el);
+        }
 
-    ui_draw();
-
-    if (state->stage == STAGE_DONE) {
-        const char *text = " PACKAGE\n$35DELIVERED";
-        const int width = font_width(text);
-        font_str(
-            (ivec2s) {{ (TARGET_SIZE.x - width) / 2, (TARGET_SIZE.y - 4) / 2 }},
-            Z_UI,
-            COLOR_WHITE,
-            FONT_DOUBLED,
-            text);
+        ui_draw();
     }
 
     const mat4s
@@ -311,7 +342,7 @@ static void frame() {
     sg_pass_action pass_action = { 0 };
     pass_action.colors[0] = (sg_color_attachment_action) {
         .action = SG_ACTION_CLEAR,
-        .value = { 0.0f, 0.0f, 0.0f, 1.0f }
+        .value = { state->clear_color.r, state->clear_color.g, state->clear_color.b, 1.0f }
     };
 
     sg_begin_default_pass(&pass_action, w, h);

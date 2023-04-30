@@ -57,6 +57,10 @@ void level_init(level *level, const level_data *data) {
     }
 }
 
+ void level_destroy(level *level){
+     /// /hasfiuasfjkasghfajksgf
+ }
+
 bool level_find_near_tile(level *l, ivec2s lpos, tile_type type, ivec2s *out) {
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
@@ -83,6 +87,7 @@ void level_go(level *level) {
 
     entity *truck = level_new_entity(level, ENTITY_TRUCK);
     entity_set_pos(truck, IVEC2S2V(level_tile_to_px(start_road)));
+    truck->health = state->stats.truck_health;
 
     // spawn ships
     DYNLIST(ivec2s) ship_locations = NULL;
@@ -99,7 +104,7 @@ void level_go(level *level) {
         const entity_type type = level->data->ships[i].type;
         if (type == ENTITY_TYPE_NONE) { break; }
 
-        for (int j = 0; j < level->data->ships[i].count; i++) {
+        for (int j = 0; j < level->data->ships[i].count; j++) {
             const int sz = dynlist_size(ship_locations);
             if (sz == 0) {
                 WARN("out of ship locations!");

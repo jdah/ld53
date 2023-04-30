@@ -3,6 +3,7 @@
 #include "font.h"
 #include "gfx.h"
 #include "level.h"
+#include "level_data.h"
 #include "palette.h"
 #include "sound.h"
 #include "state.h"
@@ -26,11 +27,22 @@ static const entity_type buy_entities[GRID_WIDTH][GRID_HEIGHT] = {
     [0][GRID_HEIGHT - 3] = ENTITY_RADAR_L0,
     [1][GRID_HEIGHT - 3] = ENTITY_RADAR_L1,
     [2][GRID_HEIGHT - 3] = ENTITY_BOOMBOX,
+    [0][GRID_HEIGHT - 4] = ENTITY_DECOY_TRUCK,
+    /* [1][GRID_HEIGHT - 3] = ENTITY_RADAR_L1, */
+    /* [2][GRID_HEIGHT - 3] = ENTITY_BOOMBOX, */
+    [0][GRID_HEIGHT - 5] = ENTITY_REPAIR,
+    [1][GRID_HEIGHT - 5] = ENTITY_ARMOR_UPGRADE,
+    [2][GRID_HEIGHT - 5] = ENTITY_SPEED_UPGRADE,
 };
 
 static ivec2s get_pos_base() {
     const sg_image_desc imdesc = sg_query_image_desc(state->image.buy_base);
     return (ivec2s) {{ TARGET_SIZE.x - imdesc.width, 0 }};
+}
+
+static ivec2s get_size_base() {
+    const sg_image_desc imdesc = sg_query_image_desc(state->image.buy_base);
+    return IVEC2S(imdesc.width, imdesc.height);
 }
 
 static ivec2s get_pos_grid(ivec2s index) {
@@ -65,6 +77,48 @@ static aabb get_aabb_button() {
         ((ivec2s) {{ 38, 10 }}));
 }
 
+static int price_for_entity(entity_type type) {
+    entity_info *info = &ENTITY_INFO[type];
+
+    if (info->flags & EIF_NOT_AN_ENTITY) {
+        switch (type) {
+        default: break;
+        case ENTITY_REPAIR: {
+            return 50;
+        } break;
+        case ENTITY_ARMOR_UPGRADE: {
+            return 250 + state->stats.truck_armor_level * 250;
+        } break;
+        case ENTITY_SPEED_UPGRADE: {
+            return 300 + state->stats.truck_speed_level * 300;
+        } break;
+        }
+    }
+
+    return state->stats.unlocked[type] ? info->buy_price : info->unlock_price;
+}
+
+static bool can_buy_entity(entity_type type) {
+    entity_info *info = &ENTITY_INFO[type];
+
+    if (info->flags & EIF_NOT_AN_ENTITY) {
+        switch (type) {
+        default: ASSERT(false);
+        case ENTITY_REPAIR: {
+            return state->stats.truck_health < MAX_TRUCK_HEALTH;
+        } break;
+        case ENTITY_ARMOR_UPGRADE: {
+            return state->stats.truck_armor_level != MAX_TRUCK_ARMOR;
+        } break;
+        case ENTITY_SPEED_UPGRADE: {
+            return state->stats.truck_speed_level != MAX_TRUCK_SPEED;
+        } break;
+        }
+    }
+
+    return true;
+}
+
 static bool can_buy() {
     return state->stage == STAGE_BUILD || state->stage == STAGE_PLAY;
 }
@@ -83,8 +137,8 @@ bool update_sidebar() {
                 continue;
             }
 
-            const entity_type entity = buy_entities[index.x][index.y];
-            entity_info *info = &ENTITY_INFO[entity];
+            const entity_type type = buy_entities[index.x][index.y];
+            entity_info *info = &ENTITY_INFO[type];
 
             if (info->name) {
                 ui_set_desc("%s", info->name);
@@ -94,15 +148,18 @@ bool update_sidebar() {
                 continue;
             }
 
+            if (!can_buy_entity(type)) {
+                continue;
+            }
+
             // cancel all actions
-            if (entity == ENTITY_TYPE_NONE) {
+            if (type == ENTITY_TYPE_NONE) {
                 state->ui.place_entity = ENTITY_TYPE_NONE;
                 return true;
             }
 
-            const bool unlocked = state->stats.unlocked[entity];
-            const int price =
-                unlocked ? info->buy_price : info->unlock_price;
+            const bool unlocked = state->stats.unlocked[type];
+            const int price = price_for_entity(type);
 
             if (state->stats.money < price) {
                 sound_play("select_lo.wav", 1.0f);
@@ -111,7 +168,7 @@ bool update_sidebar() {
 
             if (!unlocked) {
                 sound_play("unlock.wav", 1.0f);
-                state->stats.unlocked[entity] = true;
+                state->stats.unlocked[type] = true;
                 state->stats.money -= price;
 
                 particle *p =
@@ -124,9 +181,36 @@ bool update_sidebar() {
                 p->z = Z_UI - 0.004f;
             }
 
-            state->ui.place_entity = entity;
+            if (info->flags & EIF_NOT_AN_ENTITY) {
+                switch (type) {
+                default: ASSERT(false); break;
+                case ENTITY_REPAIR: {
+                    entity *truck =
+                        level_find_entity(state->level, ENTITY_TRUCK);
+
+                    if (truck) {
+                        truck->health =
+                            clamp(truck->health + 10, 0, MAX_TRUCK_HEALTH);
+                        state->stats.truck_health = truck->health;
+                    } else {
+                        state->stats.truck_health =
+                            clamp(
+                                state->stats.truck_health + 10, 0, MAX_TRUCK_HEALTH);
+                    }
+                } break;
+                case ENTITY_ARMOR_UPGRADE: {
+                    state->stats.truck_armor_level++;
+                } break;
+                case ENTITY_SPEED_UPGRADE: {
+                    state->stats.truck_speed_level++;
+                } break;
+                }
+            } else {
+                state->ui.place_entity = type;
+            }
+
             sound_play("select_hi.wav", 1.0f);
-            LOG("placing %d", entity);
+            LOG("placing %d", type);
             return true;
         }
     }
@@ -263,19 +347,24 @@ static void draw_sidebar() {
         for (int x = 0; x < GRID_SIZE.x; x++) {
             const ivec2s index = {{ x, y }};
             const ivec2s pos = get_pos_grid((ivec2s) {{ x, y }});
-            const bool highlight =
+            bool highlight =
                 aabb_contains(get_aabb_grid(index), state->input.cursor.pos);
 
-            const entity_type entity = buy_entities[index.x][index.y];
-            entity_info *info = &ENTITY_INFO[entity];
+            const entity_type type = buy_entities[index.x][index.y];
+            entity_info *info = &ENTITY_INFO[type];
 
-            const bool unlocked = state->stats.unlocked[entity];
+            bool unlocked = state->stats.unlocked[type];
+            bool enabled = true;
+
+            if (!can_buy_entity(type)) {
+                enabled = false;
+            }
 
             vec4s color = COLOR_WHITE;
 
             if (highlight) {
                 color = GRAYSCALE(1.5f, 1.0f);
-            } else if (!unlocked) {
+            } else if (!unlocked || !enabled) {
                 color = GRAYSCALE(0.4f, 1.0f);
             }
 
@@ -291,7 +380,7 @@ static void draw_sidebar() {
                 });
 
 
-            if (entity != ENTITY_TYPE_NONE) {
+            if (type != ENTITY_TYPE_NONE) {
                 gfx_batcher_push_sprite(
                     &state->batcher,
                     &state->atlas.tile,
@@ -324,8 +413,7 @@ static void draw_sidebar() {
                         .flags = GFX_NO_FLAGS
                     });
 
-                const int price =
-                    unlocked ? info->buy_price : info->unlock_price;
+                const int price = price_for_entity(type);
                 font_v(
                     (ivec2s) {{
                         pos_base.x + 9,
@@ -337,7 +425,7 @@ static void draw_sidebar() {
                         : palette_get(60),
                     FONT_DOUBLED,
                     "%d",
-                    unlocked ? info->buy_price : info->unlock_price);
+                    price);
             }
         }
     }
@@ -419,7 +507,9 @@ static void draw_stats() {
     font_v(
         (ivec2s) {{ 2 + 9, TARGET_SIZE.y - 19 }},
         Z_UI,
-        COLOR_WHITE,
+        state->stats.truck_armor_level > 0 ?
+            palette_get(11)
+            : COLOR_WHITE,
         FONT_DOUBLED,
         "%d",
         truck ? (int) truck->health : 100);
@@ -487,15 +577,179 @@ void draw_advice() {
     }
 }
 
+static int get_building_reclaim_bonus(level *l) {
+    int res = 0;
+
+    dlist_each(node, &l->all_entities, it) {
+        if (E_INFO(it.el)->flags & EIF_PLACEABLE) {
+            const f32 condition =
+                ifnan(it.el->health / (f32) E_INFO(it.el)->max_health, 0);
+            res += E_INFO(it.el)->buy_price * condition;
+        }
+    }
+
+    return res;
+}
+
+static void draw_endgame() {
+    if (state->stage != STAGE_DONE) {
+        return;
+    }
+
+    entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
+    const bool lost = !truck || truck->health <= 0;
+    const ivec2s size_base = get_size_base();
+
+    if (lost) {
+        const char *done_text = "$60FAILURE TO\n DELIVER";
+        int width = font_width(done_text);
+        int x = ((TARGET_SIZE.x - size_base.x) - width) / 2;
+        int y = (TARGET_SIZE.y / 2) + 16;
+        font_str(
+            IVEC2S(x, y),
+            Z_UI,
+            COLOR_WHITE,
+            FONT_DOUBLED,
+            done_text);
+        y -= 22;
+
+        const vec4s color = palette_get(6);
+        font_v(
+            (ivec2s) {{ x - 12, y }},
+            Z_UI,
+            VEC4S(color.r, color.g, color.b, 0.8f + 0.2f * sin(state->time.tick / 6.0f)),
+            FONT_DOUBLED,
+            " PRESS SPACE\nTO ADMIT DEFEAT");
+        y -= 10;
+        return;
+    }
+
+    const int since = state->time.tick - state->stage_change_tick;
+    if (state->done_screen_state == 0) {
+        state->done_screen_state++;
+        sound_play("explode.wav", 1.0f);
+    }
+
+    const char *done_text = " PACKAGE\n$35DELIVERED";
+    int width = font_width(done_text);
+    int x = ((TARGET_SIZE.x - size_base.x) - width) / 2;
+    int y = (TARGET_SIZE.y / 2) + 16;
+    font_str(
+        IVEC2S(x, y),
+        Z_UI,
+        COLOR_WHITE,
+        FONT_DOUBLED,
+        done_text);
+    y -= 22;
+
+    if (since >= 30) {
+        if (state->done_screen_state == 1) {
+            state->stats.money +=
+                state->level->data->bonus;
+            state->done_screen_state++;
+            sound_play("explode.wav", 1.0f);
+        }
+
+        font_v(
+            (ivec2s) {{ x, y }},
+            Z_UI,
+            COLOR_WHITE,
+            FONT_DOUBLED,
+            "PAY: $33%d",
+            state->level->data->bonus);
+        y -= 10;
+    }
+
+    if (since >= 60) {
+        const int truck_bonus = truck ? (truck->health / 2) : 0;
+        if (state->done_screen_state == 2) {
+            state->stats.money += truck_bonus;
+            state->done_screen_state++;
+            sound_play("explode.wav", 1.0f);
+        }
+
+        font_v(
+            (ivec2s) {{ x, y }},
+            Z_UI,
+            COLOR_WHITE,
+            FONT_DOUBLED,
+            "   + $33%d",
+            truck_bonus);
+        y -= 10;
+    }
+
+    // TODO:building bonus
+    if (since >= 90) {
+        const int build_bonus = get_building_reclaim_bonus(state->level);
+        if (state->done_screen_state == 3) {
+            state->stats.money += build_bonus;
+            state->done_screen_state++;
+            sound_play("explode.wav", 1.0f);
+        }
+
+        font_v(
+            (ivec2s) {{ x, y }},
+            Z_UI,
+            COLOR_WHITE,
+            FONT_DOUBLED,
+            "   + $33%d",
+            build_bonus);
+        y -= 10;
+    }
+
+    if (since >= 120) {
+        if (state->done_screen_state == 4) {
+            state->done_screen_state++;
+            sound_play("win.wav", 1.0f);
+        }
+
+        const char *text;
+        if (state->level_index == NUM_LEVELS - 1) {
+            text = "PRESS SPACE\n  TO $32WIN ";
+        } else {
+            text = " PRESS SPACE\nFOR NEXT LEVEL";
+        }
+
+        const vec4s color = palette_get(PALETTE_ALIEN_GREEN);
+        font_v(
+            (ivec2s) {{ x - 12, y }},
+            Z_UI,
+            VEC4S(color.r, color.g, color.b, 0.8f + 0.2f * sin(state->time.tick / 6.0f)),
+            FONT_DOUBLED,
+            text);
+        y -= 10;
+    }
+}
+
+static void update_endgame() {
+    entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
+    const bool lost = !truck || truck->health <= 0;
+
+    if (input_get(&state->input, "space") & INPUT_PRESS) {
+        if (lost) {
+            state_set_stage(state, STAGE_MAIN_MENU);
+        } else if (state->level_index == NUM_LEVELS - 1) {
+            sound_play("win.wav", 1.0f);
+            state_set_stage(state, STAGE_MAIN_MENU);
+        } else {
+            state_set_stage(state, STAGE_TITLE);
+            state_set_level(state, state->level_index + 1);
+        }
+    }
+}
+
 void ui_draw() {
     draw_sidebar();
     draw_stats();
     draw_overlay();
     draw_desc();
     draw_advice();
+    draw_endgame();
 }
 
 void ui_update() {
+    update_endgame();
+
     state->ui.desc[0] = '\0';
 
     bool got_cursor = false;
@@ -508,4 +762,27 @@ void ui_set_desc(const char *fmt, ...) {
     va_start(ap);
     vsnprintf(state->ui.desc, sizeof(state->ui.desc), fmt, ap);
     va_end(ap);
+}
+
+int ui_center_str(
+    int y,
+    f32 z,
+    vec4s color,
+    const char *fmt,
+    ...) {
+    va_list ap;
+    va_start(ap);
+    char buf[256];
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+
+    const int width = font_width(buf);
+    font_str(
+        (ivec2s) {{ (TARGET_SIZE.x - width) / 2, y }},
+        z,
+        color,
+        FONT_DOUBLED,
+        buf);
+
+    return (TARGET_SIZE.x - width) / 2;
 }

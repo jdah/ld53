@@ -5,6 +5,7 @@
 #include "defs.h"
 #include "input.h"
 #include "gfx.h"
+#include "main_menu.h"
 #include "particle.h"
 
 #include <cjam/dynlist.h>
@@ -28,6 +29,7 @@ typedef struct {
 
     struct {
         sg_image buy_base;
+        sg_image logo;
     } image;
 
     struct {
@@ -42,6 +44,10 @@ typedef struct {
 
     struct {
         int money;
+        f32 truck_health;
+
+        int truck_armor_level;
+        int truck_speed_level;
 
         bool unlocked[ENTITY_TYPE_COUNT];
     } stats;
@@ -57,9 +63,22 @@ typedef struct {
     // current game state
     stage stage, last_stage;
 
+    int stage_change_tick;
+
+    int done_screen_state;
+
+    main_menu _main_menu;
+
     cursor_mode cursor_mode;
 
+    int title_state;
+
+    int level_index;
     level *level;
+
+    bool hacks;
+
+    vec4s clear_color;
 } global_state;
 
 extern global_state *state;
@@ -67,5 +86,7 @@ extern global_state *state;
 ALWAYS_INLINE void state_set_stage(global_state *s, stage stage) {
     LOG("from stage %d -> %d", s->stage, stage);
     s->stage = stage;
+    s->stage_change_tick = s->time.tick;
 }
 
+void state_set_level(global_state *s, int level);

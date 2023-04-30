@@ -11,11 +11,13 @@ typedef struct entity_s entity;
 
 // TODO
 typedef struct {
+    const char *title;
     const char *map[LEVEL_HEIGHT];
     struct {
         entity_type type;
         int count;
     } ships[32];
+    int bonus;
 } level_data;
 
 typedef struct level_s {
@@ -33,6 +35,7 @@ typedef struct level_s {
 } level;
 
 void level_init(level*, const level_data *data);
+void level_destroy(level*);
 bool level_find_near_tile(level*, ivec2s, tile_type, ivec2s*);
 void level_go(level*);
 void level_tick(level*);

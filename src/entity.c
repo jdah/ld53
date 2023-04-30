@@ -294,8 +294,15 @@ shoot:
     }
 }
 
+static void tick_basic_building(entity *e) {
+    if (state->stage != STAGE_PLAY) { return; }
+    if (check_building_death(e)) { return; }
+}
+
 static void tick_truck(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
+
+    state->stats.truck_health = e->health;
 
     if (e->health < e->last_health && (state->time.tick % 5 == 0)) {
         play_hit_sound();
@@ -372,6 +379,8 @@ int priority_alien_target(entity *e, entity *alien) {
     f32 mod = 1.0f;
     if (e->type == ENTITY_TRUCK) {
         mod = 5.0f;
+    } else if (e->type == ENTITY_DECOY_TRUCK) {
+        mod = 3.0f;
     } else {
         // check for other aliens on tile, don't mob
         entity *entities[64];
@@ -897,6 +906,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
     [ENTITY_RADAR_L0] = {
         .name = "RADAR MK. 1",
         .base_sprite = {{ 3, 5 }},
+        .tick = tick_basic_building,
         .draw = draw_radar,
         .unlock_price = 150,
         .buy_price = 100,
@@ -918,6 +928,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
     [ENTITY_RADAR_L1] = {
         .name = "RADAR MK. 2",
         .base_sprite = {{ 4, 5 }},
+        .tick = tick_basic_building,
         .draw = draw_radar,
         .unlock_price = 500,
         .buy_price = 250,
@@ -936,9 +947,29 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .radius = 2,
         },
     },
+    [ENTITY_DECOY_TRUCK] = {
+        .name = "DECOY TRUCK",
+        .base_sprite = {{ 6, 0 }},
+        .tick = tick_basic_building,
+        .draw = draw_basic,
+        .unlock_price = 250,
+        .buy_price = 150,
+        .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
+        .aabb = {
+            .min = {{ 1, 1 }},
+            .max = {{ 7, 6 }}
+        },
+        .palette = 30,
+        .max_health = 25,
+        .base = {
+            .health = 25
+        },
+    },
     [ENTITY_BOOMBOX] = {
         .name = "BOOMBOX",
         .base_sprite = {{ 3, 3 }},
+        .tick = tick_basic_building,
         .draw = draw_basic,
         .unlock_price = 750,
         .buy_price = 200,
@@ -1005,7 +1036,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .draw = draw_truck,
         .tick = tick_truck,
         .base = {
-            .health = 100
+            .health = 10
         }
     },
     [ENTITY_ALIEN_L0] = {
@@ -1049,4 +1080,25 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .health = 25
         },
     },
+    [ENTITY_REPAIR] = {
+        .name = "REPAIR 10",
+        .base_sprite = {{ 6, 0 }},
+        .unlock_price = 0,
+        .buy_price = 50,
+        .flags = EIF_NOT_AN_ENTITY
+    },
+    [ENTITY_ARMOR_UPGRADE] = {
+        .name = "ARMOR UPGRADE",
+        .base_sprite = {{ 7, 0 }},
+        .unlock_price = 0,
+        .buy_price = 1000,
+        .flags = EIF_NOT_AN_ENTITY
+    },
+    [ENTITY_SPEED_UPGRADE] = {
+        .name = "SPEED UPGRADE",
+        .base_sprite = {{ 8, 0 }},
+        .unlock_price = 0,
+        .buy_price = 1000,
+        .flags = EIF_NOT_AN_ENTITY
+    }
 };

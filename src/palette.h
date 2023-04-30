@@ -19,6 +19,8 @@
 #define PALETTE_ALIEN_GREY 6
 #define PALETTE_ALIEN_RED 61
 
+#define PALETTE_SKY 40
+
 vec4s palette_get(int i);
 
 extern u32 palette[64];

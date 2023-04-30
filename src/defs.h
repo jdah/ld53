@@ -11,6 +11,9 @@
 #define WINDOW_SIZE ((ivec2s) {{ 1280, 720 }})
 #define TARGET_SIZE ((ivec2s) {{ 192, 108 }})
 
+// TODO TURN OFF
+#define HACKS
+
 #define TILE_SIZE_PX 8
 
 #define TICKS_PER_SECOND 30
@@ -22,6 +25,10 @@
 #define LEVEL_SIZE ((ivec2s) {{ LEVEL_WIDTH, LEVEL_HEIGHT }})
 
 #define MAX_ENTITIES 16384
+
+#define MAX_TRUCK_HEALTH 100
+#define MAX_TRUCK_ARMOR 3
+#define MAX_TRUCK_SPEED 3
 
 #define Z_MIN -1.0f
 #define Z_MAX 1.0f
@@ -37,8 +44,11 @@
 #define COLOR_WHITE ((vec4s) {{ 1.0f, 1.0f, 1.0f, 1.0f }})
 #define COLOR_BLACK ((vec4s) {{ 0.0f, 0.0f, 0.0f, 0.0f }})
 
+#define START_MONEY 50
+
 typedef enum {
     STAGE_MAIN_MENU,
+    STAGE_TITLE,
     STAGE_BUILD,
     STAGE_PLAY,
     STAGE_DONE,
@@ -78,6 +88,7 @@ typedef enum {
     ENTITY_BOOMBOX,
     ENTITY_START_POINT,
     ENTITY_FLAG,
+    ENTITY_DECOY_TRUCK,
     ENTITY_TRUCK,
     ENTITY_ALIEN_L0,
     ENTITY_SHIP_L0,
@@ -86,6 +97,9 @@ typedef enum {
     ENTITY_TRANSPORT_L0,
     ENTITY_TRANSPORT_L1,
     ENTITY_TRANSPORT_L2,
+    ENTITY_REPAIR,
+    ENTITY_ARMOR_UPGRADE,
+    ENTITY_SPEED_UPGRADE,
     ENTITY_TYPE_COUNT
 } entity_type;
 
@@ -97,6 +111,7 @@ enum {
     EIF_PLACEABLE = 1 << 2,
     EIF_ALIEN = 1 << 3,
     EIF_SHIP = 1 << 4,
+    EIF_NOT_AN_ENTITY = 1 << 5
 };
 
 // level tile flags
