@@ -1,9 +1,11 @@
 #include "entity.h"
 #include "cjam/rand.h"
 #include "direction.h"
+#include "font.h"
 #include "gfx.h"
 #include "level.h"
 #include "palette.h"
+#include "sound.h"
 #include "state.h"
 #include "util.h"
 
@@ -81,6 +83,7 @@ static entity *shoot_bullet(entity_type type, vec2s origin, vec2s dir) {
     entity *e = level_new_entity(state->level, type);
     e->bullet.velocity = glms_vec2_scale(dir, info->bullet.speed);
     entity_set_pos(e, origin);
+    sound_play("shoot.wav");
     return e;
 }
 
@@ -118,6 +121,22 @@ static bool entity_move_on_path(
     return false;
 }
 
+static bool check_building_death(entity *e) {
+    // TODO: sound
+    const entity_info *info = &ENTITY_INFO[e->type];
+    if (e->health <= 0) {
+        e->delete = true;
+        particle_new_multi_splat(
+            IVEC2S2V(entity_center(e)),
+            palette_get(info->palette),
+            TICKS_PER_SECOND,
+            5, 10, false);
+        return true;
+    }
+
+    return false;
+}
+
 static void tick_mine(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
@@ -139,9 +158,9 @@ static void tick_mine(entity *e) {
         e->delete = true;
 
         const f32 base_damage = 32.0f;
-        const int mod = e->type - ENTITY_MINE_L0;
+        const int mod = (e->type - ENTITY_MINE_L0) + 1;
 
-        const aabb area = aabb_scale_center(entity_aabb(e), IVEC2S(3));
+        const aabb area = aabb_scale_center(entity_aabb(e), IVEC2S(4 + mod));
         entity *around[64];
         const int m =
             level_get_box_entities(
@@ -214,6 +233,8 @@ static void tick_turret(entity *e) {
         e->turret.angle += 0.1f;
         return;
     }
+
+    if (check_building_death(e)) { return; }
 
     entity *target = level_get_entity(state->level, e->turret.target);
 
@@ -564,6 +585,58 @@ static void draw_turret(entity *e) {
 static void draw_radar(entity *e) {
     draw_basic(e);
 
+    if (glms_ivec2_eq(state->input.cursor.tile, e->tile)) {
+        const int r = E_INFO(e)->radar.radius;
+        for (int x = -r; x <= r; x++) {
+            for (int y = -r; y <= r; y++) {
+                const ivec2s offset = IVEC2S(x, y);
+
+                gfx_batcher_push_sprite(
+                    &state->batcher,
+                    &state->atlas.tile,
+                    &(gfx_sprite) {
+                        .pos =
+                            IVEC2S2V(
+                                glms_ivec2_scale(
+                                    glms_ivec2_add(e->tile, offset),
+                                    TILE_SIZE_PX)),
+                        .index = {{ 0, 14 }},
+                        .color = GRAYSCALE(1.0f, 0.4f),
+                        .z = Z_LEVEL_ENTITY_OVERLAY,
+                        .flags = GFX_NO_FLAGS
+                    });
+            }
+        }
+    }
+
+    if (state->stage == STAGE_BUILD) {
+        // show potential alien spawns
+        const int r = E_INFO(e)->radar.radius;
+        for (int x = -r; x <= r; x++) {
+            for (int y = -r; y <= r; y++) {
+                const ivec2s offset = IVEC2S(x, y);
+                const ivec2s tile = glms_ivec2_add(e->tile, offset);
+
+                if (!level_tile_in_bounds(tile)) { continue; }
+
+                if (!(state->level->flags[tile.x][tile.y] & LTF_ALIEN_SPAWN)) {
+                    continue;
+                }
+
+                const vec4s col = palette_get(PALETTE_RED);
+                font_str(
+                    level_tile_to_px(tile),
+                    Z_LEVEL_ENTITY_OVERLAY,
+                    VEC4S(
+                        col.r, col.g, col.b,
+                        0.2f + 0.5f * sin(state->time.tick / 8.0f)),
+                    FONT_DOUBLED,
+                    "?");
+            }
+        }
+    }
+
+    // blinky bit
     if ((((e->id.index * 17) + state->time.tick / 5)) % 6 == 0) { return; }
 
     gfx_batcher_push_sprite(
@@ -690,6 +763,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 7, 7 }}
         },
         .palette = PALETTE_L1,
+        .base = {
+            .health = 40,
+        },
     },
     [ENTITY_TURRET_L2] = {
         .name = "TURRET MK. 3",
@@ -709,6 +785,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 6, 6 }}
         },
         .palette = PALETTE_L2,
+        .base = {
+            .health = 60,
+        },
     },
     [ENTITY_MINE_L0] = {
         .name = "MINE MK. 1",
@@ -768,6 +847,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 5, 5 }}
         },
         .palette = PALETTE_L0,
+        .radar = {
+            .radius = 1,
+        },
     },
     [ENTITY_RADAR_L1] = {
         .name = "RADAR MK. 2",
@@ -782,6 +864,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 5, 5 }}
         },
         .palette = PALETTE_L1,
+        .radar = {
+            .radius = 2,
+        },
     },
     [ENTITY_BOOMBOX] = {
         .name = "BOOMBOX",

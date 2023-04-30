@@ -89,6 +89,10 @@ typedef struct entity_info_s {
         f32 bps;
     } turret;
 
+    struct {
+        int radius;
+    } radar;
+
     entity base;
 } entity_info;
 

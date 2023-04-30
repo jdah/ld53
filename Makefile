@@ -119,8 +119,16 @@ $(OBJ): %.o: %.c
 native: dirs shaders $(OBJ)
 	$(LD) -o $(EXE) $(LDFLAGS) $(filter %.o,$^)
 
-build: dirs shaders
-	$(EMCC) -o $(OUT) -MMD $(EMCCFLAGS) $(INCFLAGS) $(EMLDFLAGS) $(SRC)
+soloud:
+	$(EMCC) -o bin/soloud.a \
+		-iquotelib/soloud/include \
+		lib/soloud/src/core/*.cpp \
+		lib/soloud/src/filter/*.cpp \
+		lib/soloud/src/backend/sdl2_static/*.cpp \
+		lib/soloud/src/audiosource/wav/*.c
+
+build: dirs shaders soloud
+	$(EMCC) -o $(OUT) -MMD $(EMCCFLAGS) $(INCFLAGS) $(EMLDFLAGS) lib/soloud $(SRC)
 
 package: build
 	cd $(BIN) && zip index.zip index.data index.html index.js index.wasm

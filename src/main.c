@@ -4,11 +4,11 @@
 #include <cjam/dynlist.h>
 #include <cjam/file.h>
 #include <cjam/rand.h>
-#include <cjam/sound.h>
 #include <cjam/time.h>
 #include <cjam/log.h>
 
 #include "level_data.h"
+#include "sound.h"
 #include "ui.h"
 #include "defs.h"
 #include "entity.h"
