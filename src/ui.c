@@ -523,7 +523,7 @@ static void draw_stats() {
             : COLOR_WHITE,
         FONT_DOUBLED,
         "%d",
-        truck ? (int) truck->health : 100);
+        (int) (truck ? truck->health : state->stats.truck_health));
 }
 
 static void draw_overlay() {
@@ -633,7 +633,8 @@ static void draw_endgame() {
             Z_UI,
             VEC4S(color.r, color.g, color.b, 0.8f + 0.2f * sin(state->time.tick / 6.0f)),
             FONT_DOUBLED,
-            " PRESS SPACE\nTO ADMIT DEFEAT");
+            " PRESS SPACE\nTO ADMIT DEFEAT\n\n"
+            " $05   [R] TO \n  TRY AGAIN");
         y -= 10;
         return;
     }
@@ -743,12 +744,19 @@ static void update_endgame() {
     entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
     const bool lost = !truck || truck->health <= 0;
 
+    if (lost && (input_get(&state->input, "r") & INPUT_PRESS)) {
+        state->stats = state->old_stats;
+        state_set_stage(state, STAGE_TITLE);
+        state_set_level(state, state->level_index);
+    }
+
     if (input_get(&state->input, "space") & INPUT_PRESS) {
         if (lost) {
             state_set_stage(state, STAGE_MAIN_MENU);
         } else if (state->level_index == NUM_LEVELS - 1) {
             sound_play("win.wav", 1.0f);
             state_set_stage(state, STAGE_MAIN_MENU);
+            state->has_won = true;
         } else {
             state_set_stage(state, STAGE_TITLE);
             state_set_level(state, state->level_index + 1);

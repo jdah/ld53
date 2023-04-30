@@ -81,6 +81,31 @@ bool level_find_near_tile(level *l, ivec2s lpos, tile_type type, ivec2s *out) {
     return false;
 }
 
+
+static void spawn_random_ship(level *level) {
+    int nships = 0;
+    for (int i = 0; i < (int) ARRLEN(level->data->ships); i++) {
+        const entity_type type = level->data->ships[i].type;
+        if (type == ENTITY_TYPE_NONE) { break; }
+        nships++;
+    }
+
+    struct rand r = rand_create(state->time.tick);
+    for (int x = 0; x < LEVEL_WIDTH; x++) {
+        for (int y = 0; y < LEVEL_HEIGHT; y++) {
+            if ((level->flags[x][y] & LTF_ALIEN_SPAWN)
+                && level->tile_entities[x][y].head == NULL) {
+                const ivec2s p = IVEC2S(x, y);
+                const entity_type type =
+                    level->data->ships[rand_n(&r, 0, nships - 1)].type;
+                entity *ship = level_new_entity(level, type);
+                entity_set_pos(ship, IVEC2S2V(level_tile_to_px(p)));
+                return;
+            }
+        }
+    }
+}
+
 void level_go(level *level) {
     ivec2s start_road;
     ASSERT(
@@ -169,6 +194,18 @@ deleted:
 
     // TODO: very inefficient
     level_update_music(level);
+
+    if (state->stage == STAGE_PLAY) {
+        struct rand r = rand_create(state->time.tick);
+
+        if (!level_has_enemies(level) && rand_chance(&r, 0.03f)) {
+            spawn_random_ship(level);
+        }
+
+        if (rand_chance(&r, 0.0025f)) {
+            spawn_random_ship(level);
+        }
+    }
 }
 
 void level_update_music(level *l) {
@@ -288,7 +325,7 @@ static void tile_draw(
                 TILE_ROAD,
                 TILE_WAREHOUSE_START,
                 TILE_WAREHOUSE_FINISH,
-            }, 3, true, surround);
+            }, 3, level->tiles[lpos.x][lpos.y] != TILE_ROAD, surround);
 
         ivec2s offset;
         if (surround[1][0] && surround[2][1]) {
@@ -667,3 +704,12 @@ bool level_path(
     return success;
 }
 
+bool level_has_enemies(level *l) {
+    dlist_each(node, &l->all_entities, it) {
+        if (E_INFO(it.el)->flags & (EIF_ENEMY | EIF_SHIP)) {
+            return true;
+        }
+    }
+
+    return false;
+}

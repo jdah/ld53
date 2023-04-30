@@ -104,23 +104,23 @@ static entity *shoot_bullet(entity_type type, vec2s origin, vec2s dir, ivec2s ta
     return e;
 }
 
-// move e on path, return true if hit target
-static bool entity_move_on_path(
-    entity *e, f32 speed, bool center, vec2s *move_out, direction *dir_out) {
-    ASSERT(e->path);
-    if (dynlist_size(e->path) == 1) {
-        return true;
+// move e to point
+static void entity_move_to_point(
+    entity *e, vec2s goal, bool center, f32 speed, vec2s *move_out, direction *dir_out) {
+    vec2s
+        c = center ? IVEC2S2V(entity_center(e)) : e->pos,
+        l = glms_vec2_sub(goal, c),
+        m;
+
+    bool move_x = false;
+    if (fabsf(l.x - l.y) < 0.001f) {
+        // prefer last direction
+        move_x = fabsf(e->last_move.x) > fabsf(e->last_move.y);
     }
 
-    const ivec2s
-        next = e->path[1],
-        next_px = center ? level_tile_center_px(next) : level_tile_to_px(next);
-
-    vec2s
-        l = glms_vec2_sub(IVEC2S2V(next_px), IVEC2S2V(entity_center(e))),
-        m = fabsf(l.x) > fabsf(l.y) ?
-            VEC2S(sign(l.x), 0.0f)
-            : VEC2S(0.0f, sign(l.y));
+    m = (move_x || fabsf(l.x) > fabsf(l.y)) ?
+        VEC2S(sign(l.x), 0.0f)
+        : VEC2S(0.0f, sign(l.y));
 
     m = glms_vec2_scale(m, speed);
 
@@ -134,7 +134,21 @@ static bool entity_move_on_path(
     if (dir_out) {
         *dir_out = direction_from_vec2s(m, DIRECTION_DOWN);
     }
+}
 
+// move e on path, return true if hit target
+static bool entity_move_on_path(
+    entity *e, f32 speed, vec2s *move_out, direction *dir_out) {
+    ASSERT(e->path);
+    if (dynlist_size(e->path) == 1) {
+        return true;
+    }
+
+    const ivec2s
+        next = e->path[1],
+        next_px = level_tile_center_px(next);
+
+    entity_move_to_point(e, IVEC2S2V(next_px), true, speed, move_out, dir_out);
     return false;
 }
 
@@ -328,20 +342,22 @@ static void tick_truck(entity *e) {
         state_set_stage(state, STAGE_DONE);
     }
 
-    dynlist_free(e->path);
+    if (!e->path) {
+        const bool success =
+            level_path(
+                state->level,
+                &e->path,
+                e->tile,
+                state->level->finish,
+                truck_path_weight,
+                NULL);
 
-    const bool success =
-        level_path(
-            state->level,
-            &e->path,
-            e->tile,
-            state->level->finish,
-            truck_path_weight,
-            NULL);
+        if (!success) {
+            dynlist_free(e->path);
+            e->path = NULL;
+        }
 
-    if (!success) {
-        dynlist_free(e->path);
-        e->path = NULL;
+        e->truck.path_index = 0;
     }
 
     // move to next path point
@@ -354,10 +370,19 @@ static void tick_truck(entity *e) {
                 35);
         }
 
+        const ivec2s tile = e->path[e->truck.path_index];
+        const ivec2s goal_px = level_tile_to_px(tile);
+
         const f32 speed = 0.35f + state->stats.truck_speed_level * 0.15f;
-        if (entity_move_on_path(e, speed, true, &e->last_move, &e->truck.dir)) {
+        if (glms_vec2_norm(glms_vec2_sub(e->pos, IVEC2S2V(goal_px))) < 1.5f) {
+            e->truck.path_index++;
+        }
+
+        if (e->truck.path_index == dynlist_size(e->path)) {
             state_set_stage(state, STAGE_DONE);
         }
+
+        entity_move_to_point(e, IVEC2S2V(goal_px), false, speed, &e->last_move, &e->truck.dir);
     }
 }
 
@@ -434,13 +459,13 @@ static int alien_path_weight(const level *l, ivec2s p, void*) {
     switch (tile) {
     case TILE_MOUNTAIN: return -1;
     case TILE_LAKE: return -1;
-    case TILE_SLUDGE: base = 5;
-    case TILE_MARSH: base = 3;
+    case TILE_SLUDGE: base = 10;
+    case TILE_MARSH: base = 5;
     case TILE_STONE: base = 2;
     default:
     }
 
-    return base + (l->music_level[p.x][p.y] * 5);
+    return base + (l->music_level[p.x][p.y] * 10);
 }
 
 void tick_alien(entity *e) {
@@ -459,7 +484,6 @@ void tick_alien(entity *e) {
             state->level, e->tile,
             (f_entity_priority) priority_alien_target,
             e);
-    LOG("target is %d", target ? target->id.index : 0);
     e->alien.target = target ? target->id : ENTITY_NONE;
 
     if (!target) { return; }
@@ -497,7 +521,7 @@ move:
 
     direction dir = DIRECTION_DOWN;
 
-    if (entity_move_on_path(e, speed, true, &e->last_move, &dir)) {
+    if (entity_move_on_path(e, speed, &e->last_move, &dir)) {
        vec2s
             l = glms_vec2_sub(target->pos, e->pos),
             m = fabsf(l.x) > fabsf(l.y) ?
@@ -665,7 +689,7 @@ static void draw_truck(entity *e) {
     case DIRECTION_LEFT: offset = IVEC2S(0, 0); break;
     case DIRECTION_RIGHT: offset = IVEC2S(1, 0); break;
     case DIRECTION_UP: offset = IVEC2S(2, 0); break;
-    case DIRECTION_DOWN: offset = IVEC2S(0, 0); break;
+    case DIRECTION_DOWN: offset = IVEC2S(3, 0); break;
     default: ASSERT(false);
     }
 
@@ -679,6 +703,19 @@ static void draw_truck(entity *e) {
             .z = Z_LEVEL_ENTITY,
             .flags = GFX_NO_FLAGS
         });
+
+    /* dynlist_each(e->path, it) { */
+    /*     gfx_batcher_push_sprite( */
+    /*         &state->batcher, */
+    /*         &state->atlas.tile, */
+    /*         &(gfx_sprite) { */
+    /*             .index = {{ 0, 15 }}, */
+    /*             .pos = {{ it.el->x * TILE_SIZE_PX, it.el->y * TILE_SIZE_PX }}, */
+    /*             .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }}, */
+    /*             .z = Z_UI, */
+    /*             .flags = GFX_NO_FLAGS */
+    /*         }); */
+    /* } */
 }
 
 static void draw_health(entity *e) {
@@ -868,7 +905,6 @@ static bool can_place_basic(ivec2s tile) {
 
     switch (state->level->tiles[tile.x][tile.y]) {
     case TILE_BASE: return true;
-    case TILE_MARSH: return true;
     default:
     }
 
@@ -1215,6 +1251,10 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 1 }},
         .draw = draw_truck,
         .tick = tick_truck,
+        .aabb = {
+            .min = {{ 1, 1 }},
+            .max = {{ 7, 6 }}
+        },
         .base = {
             .health = 10
         }

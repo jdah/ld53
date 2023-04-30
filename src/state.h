@@ -13,6 +13,16 @@
 typedef struct level_s level;
 
 typedef struct {
+    int money;
+    f32 truck_health;
+
+    int truck_armor_level;
+    int truck_speed_level;
+
+    bool unlocked[ENTITY_TYPE_COUNT];
+} stats;
+
+typedef struct {
     bool quit;
     SDL_Window *window;
     SDL_GLContext *glctx;
@@ -30,6 +40,7 @@ typedef struct {
     struct {
         sg_image buy_base;
         sg_image logo;
+        sg_image win_overlay;
     } image;
 
     struct {
@@ -43,20 +54,14 @@ typedef struct {
         u64 animtick;
     } time;
 
-    struct {
-        int money;
-        f32 truck_health;
-
-        int truck_armor_level;
-        int truck_speed_level;
-
-        bool unlocked[ENTITY_TYPE_COUNT];
-    } stats;
+    stats stats, old_stats;
 
     struct {
         char desc[256];
         entity_type place_entity;
     } ui;
+
+    bool has_won;
 
     // TODO
     DYNLIST(particle) particles;

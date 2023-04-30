@@ -180,6 +180,7 @@ static void init() {
 
     ASSERT(!gfx_load_image("buy_base.png", &state->image.buy_base));
     ASSERT(!gfx_load_image("logo.png", &state->image.logo));
+    ASSERT(!gfx_load_image("win_overlay.png", &state->image.win_overlay));
 
     state_set_stage(state, STAGE_MAIN_MENU);
 }
@@ -209,6 +210,8 @@ static void frame() {
                         truck,
                         IVEC2S2V(level_tile_to_px(state->level->finish)));
                 }
+
+                state->stats.money = 50000;
             }
         }
     }
@@ -250,6 +253,7 @@ static void frame() {
     if (state->last_stage != state->stage) {
         if (state->last_stage == STAGE_MAIN_MENU
             && state->stage == STAGE_TITLE) {
+            LOG("STATS RESET");
             memset(&state->stats, 0, sizeof(state->stats));
             state->stats.money = START_MONEY;
             state->stats.truck_health = MAX_TRUCK_HEALTH;
@@ -259,6 +263,11 @@ static void frame() {
                     state->stats.unlocked[i] = true;
                 }
             }
+        }
+
+        if (state->last_stage == STAGE_TITLE) {
+            // backup for restart
+            state->old_stats = state->stats;
         }
 
         state->cursor_mode = CURSOR_MODE_DEFAULT;

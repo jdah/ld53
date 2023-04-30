@@ -25,6 +25,7 @@ typedef struct entity_s {
     union {
         struct {
             direction dir;
+            int path_index;
         } truck;
         struct {
             f32 angle;

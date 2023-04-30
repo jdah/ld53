@@ -65,6 +65,8 @@ bool level_path(
     int (*weight)(const struct level_s*, ivec2s, void*),
     void *userptr);
 
+bool level_has_enemies(level*);
+
 ALWAYS_INLINE bool level_tile_in_bounds(ivec2s pos) {
     return pos.x >= 0 && pos.y >= 0 && pos.x < LEVEL_WIDTH && pos.y < LEVEL_HEIGHT;
 }
@@ -73,10 +75,14 @@ ALWAYS_INLINE bool level_px_in_bounds(ivec2s px) {
     return px.x >= 0 && px.y >= 0 && px.x < LEVEL_WIDTH * TILE_SIZE_PX && px.y < LEVEL_HEIGHT * TILE_SIZE_PX;
 }
 
+ALWAYS_INLINE ivec2s level_clamp_tile(ivec2s pos) {
+    return (ivec2s) {{ clamp(pos.x, 0, LEVEL_WIDTH - 1), clamp(pos.y, 0, LEVEL_HEIGHT - 1) }};
+}
+
 ALWAYS_INLINE ivec2s level_px_to_tile(ivec2s px) {
     px.x = clamp(px.x, 0, LEVEL_WIDTH * TILE_SIZE_PX);
     px.y = clamp(px.y, 0, LEVEL_HEIGHT * TILE_SIZE_PX);
-    return (ivec2s) {{ px.x / TILE_SIZE_PX, px.y / TILE_SIZE_PX }};
+    return level_clamp_tile((ivec2s) {{ px.x / TILE_SIZE_PX, px.y / TILE_SIZE_PX }});
 }
 
 ALWAYS_INLINE ivec2s level_tile_to_px(ivec2s pos) {
@@ -90,8 +96,4 @@ ALWAYS_INLINE ivec2s level_px_round_to_tile(ivec2s pos) {
 ALWAYS_INLINE ivec2s level_tile_center_px(ivec2s pos) {
     const ivec2s px = level_tile_to_px(pos);
     return (ivec2s) {{ px.x + (TILE_SIZE_PX / 2), px.y + (TILE_SIZE_PX / 2) }};
-}
-
-ALWAYS_INLINE ivec2s level_clamp_tile(ivec2s pos) {
-    return (ivec2s) {{ clamp(pos.x, 0, LEVEL_WIDTH - 1), clamp(pos.y, 0, LEVEL_HEIGHT - 1) }};
 }
