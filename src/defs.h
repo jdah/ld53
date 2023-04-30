@@ -48,7 +48,7 @@
 #define COLOR_WHITE ((vec4s) {{ 1.0f, 1.0f, 1.0f, 1.0f }})
 #define COLOR_BLACK ((vec4s) {{ 0.0f, 0.0f, 0.0f, 0.0f }})
 
-#define START_MONEY 50
+#define START_MONEY 150
 
 typedef enum {
     STAGE_MAIN_MENU,

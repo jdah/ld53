@@ -56,6 +56,7 @@ static bool ensure_init() {
         init = true;
         soloud = Soloud_create();
         Soloud_init(soloud);
+        Soloud_setGlobalVolume(soloud, 0.75f);
     }
 
     return true;

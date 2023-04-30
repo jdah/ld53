@@ -3,7 +3,7 @@
 #include "level_data.h"
 
 void state_set_level(global_state *s, int level) {
-    if (s->level) { level_destroy(s->level); }
+    if (s->level) { level_destroy(s->level); free(s->level); }
 
     state->level_index = level;
     state->level = calloc(1, sizeof(*state->level));

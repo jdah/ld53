@@ -41,9 +41,9 @@ level_data LEVELS[NUM_LEVELS] = {
             "                   ",
         },
         .ships = {
-            { ENTITY_SHIP_L0, 4 },
+            { ENTITY_SHIP_L0, 3 },
         },
-        .bonus = 150
+        .bonus = 200
     },
     [2] = {
         .title = "$42FAT L",
@@ -63,10 +63,10 @@ level_data LEVELS[NUM_LEVELS] = {
             "                   ",
         },
         .ships = {
-            { ENTITY_SHIP_L0, 2 },
+            { ENTITY_SHIP_L0, 1 },
             { ENTITY_SHIP_L1, 2 },
         },
-        .bonus = 200
+        .bonus = 225
     },
     [3] = {
         .title = "$55U TURN",
@@ -87,7 +87,7 @@ level_data LEVELS[NUM_LEVELS] = {
         },
         .ships = {
             { ENTITY_SHIP_L0, 2 },
-            { ENTITY_SHIP_L1, 4 },
+            { ENTITY_SHIP_L1, 2 },
         },
         .bonus = 250
     },
@@ -109,7 +109,7 @@ level_data LEVELS[NUM_LEVELS] = {
             "                   ",
         },
         .ships = {
-            { ENTITY_SHIP_L0, 6 },
+            { ENTITY_SHIP_L0, 5 },
         },
         .bonus = 300
     },
@@ -134,28 +134,28 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_SHIP_L1, 5 },
             { ENTITY_SHIP_L2, 2 },
         },
-        .bonus = 350
+        .bonus = 400
     },
     [6] = {
         .title = "$42WETLANDS",
         .map = {
-            "hhh hxhhhhh hhhhxhh",
+            "hhh hxhHhhh hhhhxhh",
             "hhhhhhhhhhhhhhhhhhh",
             "Srrrrrhh hhhhh hxhh",
-            "hhhhhrhhhhhhhhhhhhh",
+            "hHhhhrhhhhhhhhhhHhh",
             "hhhhhrhhhhh hhhhhhh",
-            "h hxhrhhhhrrrrrrrrF",
+            "h hxhrhHhhrrrrrrrrF",
             "hhhhhrhhxhrhhhxhhhh",
             "hhhhhrrrrrrhhhhhxhh",
             "hh hhhhhhhhhhh hhhh",
-            "hhhhhhxhhhhhxhhhxhh",
+            "hhhhhhxHhhhhxhhhHhh",
             "hhh hhhhh hhhhhhhhh",
-            "hhhhhhxhhhhhhhh hhh",
-            "hhhhhhhhhhhhhhhhhhh",
+            "Hhhhhhxhhhhhhhh hhh",
+            "hhhhhhhhhhHHHHhhhhh",
         },
         .ships = {
             { ENTITY_TRANSPORT_L0, 1 },
-            { ENTITY_SHIP_L2, 3 },
+            { ENTITY_SHIP_L2, 1 },
         },
         .bonus = 450
     },
@@ -186,14 +186,14 @@ level_data LEVELS[NUM_LEVELS] = {
         .title = "$50LOOP-DE-LOOP",
         .map = {
             "         x   l     ",
-            "  x   l        x   ",
+            "  x   l H  H   x   ",
             "     rrrrrrrrrr  x ",
-            "  x  r        r    ",
-            "  x  r    F   r    ",
-            "  x  rrrrrr   r x  ",
-            "      x  x    r    ",
-            "Srrrrrrrrrrrrrr  l ",
-            "   t          x    ",
+            "  x Hr  HH   HrH   ",
+            "  x Hr    F   r    ",
+            "  x Hrrrrrr  Hr x  ",
+            "  H   x  x    r    ",
+            "SrrrrrrrrrrrrrrH l ",
+            " H t   HH H   x    ",
             "     x    x t      ",
             "     x t  t     x  ",
             "  t          x     ",
@@ -212,13 +212,13 @@ level_data LEVELS[NUM_LEVELS] = {
             "xxtxxxxxxxxxxtxxxxx",
             "    t m       t    ",
             "Srrrrrrrrrrrrrrrrrr",
-            "   m  x  tx m     r",
+            "   m  x  tx m  H  r",
             "rrrrrrrrrrrrrrrrrrr",
-            "r t   x   x m  l   ",
+            "r t   x   x m  l H ",
             "rrrrrrrrrrrrrrrrrrr",
-            "  t   x x x   t   r",
+            "  t H x x x H t H r",
             "rrrrrrrrrrrrrrrrrrr",
-            "r  m    x l   x    ",
+            "r  m H  x l H x H  ",
             "rrrrrrrrrrrrrrrrrrF",
             "     m      m      ",
         },
@@ -245,7 +245,7 @@ level_data LEVELS[NUM_LEVELS] = {
             "                   ",
         },
         .ships = {
-            { ENTITY_TRANSPORT_L0, 2 },
+            { ENTITY_TRANSPORT_L0, 3 },
         },
         .bonus = 1050
     },
@@ -684,6 +684,6 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_TRANSPORT_L2, 2 },
             { ENTITY_FLAGSHIP, 8},
         },
-        .bonus = 1500
+        .bonus = 50000
     },
 };

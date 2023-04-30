@@ -66,6 +66,13 @@ void level_init(level *level, const level_data *data) {
 
  void level_destroy(level *level){
      /// /hasfiuasfjkasghfajksgf
+    dlist_each(node, &level->all_entities, it) {
+        if (it.el->path) {
+            dynlist_free(it.el->path);
+        }
+    }
+
+    free(level->entities);
  }
 
 bool level_find_near_tile(level *l, ivec2s lpos, tile_type type, ivec2s *out) {
@@ -151,7 +158,7 @@ retry:;
             entity *entities[64];
             const int n = level_get_tile_entities(level, p, entities, 64);
             for (int k = 0; k < n; k++) {
-                if (!(E_INFO(entities[i])->flags & EIF_CAN_SPAWN)) {
+                if (!(E_INFO(entities[k])->flags & EIF_CAN_SPAWN)) {
                     LOG("can't spawn on %d, %d", p.x, p.y);
                     goto retry;
                 }
@@ -437,6 +444,10 @@ void level_delete_entity(level *level, entity *e) {
             tile_node,
             &state->level->tile_entities[e->tile.x][e->tile.y],
             e);
+    }
+
+    if (e->path) {
+        dynlist_free(e->path);
     }
 
     e->id.present = false;

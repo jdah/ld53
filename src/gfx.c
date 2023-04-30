@@ -475,6 +475,7 @@ void gfx_batcher_draw(
         sg_apply_uniforms(
             SG_SHADERSTAGE_VS, SLOT_batch_vs_params, SG_RANGE_REF(vsparams));
         sg_draw(0, 6, dynlist_size(list->entries));
+        dynlist_free(list->entries);
     }
 
     CJAM_FREE(entries);

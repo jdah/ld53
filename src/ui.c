@@ -268,26 +268,31 @@ static bool update_cursor() {
         }
 
         if (select) {
-            const ivec2s tile = state->input.cursor.tile;
-            dlist_each(tile_node, &state->level->tile_entities[tile.x][tile.y], it) {
-                entity_info *info = &ENTITY_INFO[it.el->type];
-                if (info->flags & EIF_PLACEABLE) {
-                    // reclaim
-                    it.el->delete = true;
-                    sound_play("explode.wav", 1.0f);
+            if (!level_px_in_bounds(state->input.cursor.pos)) {
+                state->cursor_mode = CURSOR_MODE_DEFAULT;
+            } else {
 
-                    const int amount = info->buy_price / 2;
-                    state->stats.money += amount;
-                    particle_new_text(
-                        IVEC2S2V(state->input.cursor.pos),
-                        palette_get(PALETTE_YELLOW),
-                        TICKS_PER_SECOND,
-                        "+%d",
-                        amount);
+                const ivec2s tile = state->input.cursor.tile;
+                dlist_each(tile_node, &state->level->tile_entities[tile.x][tile.y], it) {
+                    entity_info *info = &ENTITY_INFO[it.el->type];
+                    if (info->flags & EIF_PLACEABLE) {
+                        // reclaim
+                        it.el->delete = true;
+                        sound_play("explode.wav", 1.0f);
+
+                        const int amount = info->buy_price / 2;
+                        state->stats.money += amount;
+                        particle_new_text(
+                            IVEC2S2V(state->input.cursor.pos),
+                            palette_get(PALETTE_YELLOW),
+                            TICKS_PER_SECOND,
+                            "+%d",
+                            amount);
+                    }
                 }
-            }
 
-            return true;
+                return true;
+            }
         }
     }
 
@@ -600,7 +605,7 @@ static int get_building_reclaim_bonus(level *l) {
                 max_health > 0 ?
                     ifnan(it.el->health / (f32) E_INFO(it.el)->max_health, 0)
                     : 1;
-            res += E_INFO(it.el)->buy_price * condition;
+            res += E_INFO(it.el)->buy_price * condition * 0.55f;
         }
     }
 

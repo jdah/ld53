@@ -10,3 +10,6 @@
 [submodule "lib/cglm"]
 	path = lib/cglm
 	url = https://github.com/recp/cglm
+[submodule "lib/soloud"]
+	path = lib/soloud
+	url = https://github.com/jarikomppa/soloud

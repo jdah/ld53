@@ -333,6 +333,7 @@ static void tick_basic_building(entity *e) {
 static void tick_truck(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
+    e->health = max(e->health, 0);
     state->stats.truck_health = e->health;
 
     if (e->health < e->last_health && (state->time.tick % 5 == 0)) {
@@ -942,12 +943,12 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .draw = draw_turret,
         .tick = tick_turret,
         .unlock_price = 0,
-        .buy_price = 25,
+        .buy_price = 50,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
             .bullet = ENTITY_BULLET_L0,
-            .bps = 3.2f,
+            .bps = 4.2f,
         },
         .aabb = {
             .min = {{ 0, 0 }},
@@ -964,8 +965,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 1, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 300,
-        .buy_price = 200,
+        .unlock_price = 400,
+        .buy_price = 175,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -988,7 +989,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .draw = draw_turret,
         .tick = tick_turret,
         .unlock_price = 1000,
-        .buy_price = 400,
+        .buy_price = 275,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1010,8 +1011,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 7 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 1000,
-        .buy_price = 250,
+        .unlock_price = 500,
+        .buy_price = 175,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1034,8 +1035,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 4, 7 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 1500,
-        .buy_price = 1200,
+        .unlock_price = 1000,
+        .buy_price = 250,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1088,7 +1089,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 5, 4 }},
         .draw = draw_basic,
         .tick = tick_mine,
-        .unlock_price = 1500,
+        .unlock_price = 1000,
         .buy_price = 400,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
@@ -1307,7 +1308,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .enemy = {
             .speed = 1.2f,
             .strength = 1.2f,
-            .bounty = 15
+            .bounty = 20
         },
         .base = {
             .health = 15
@@ -1363,7 +1364,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_GREY,
         .enemy = {
             .speed = 0.6f,
-            .strength = 4.0f,
+            .strength = 2.5f,
             .bounty = 100
         },
         .base = {
@@ -1382,7 +1383,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_GREY,
         .enemy = {
             .speed = 1.8f,
-            .strength = 1.2f,
+            .strength = 1.1f,
             .bounty = 100
         },
         .base = {
@@ -1401,7 +1402,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_GREY,
         .enemy = {
             .strength = 1.0f,
-            .bounty = 15
+            .bounty = 25
         },
         .ship = {
             .spawns = {
@@ -1425,7 +1426,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_RED,
         .enemy = {
             .strength = 1.0f,
-            .bounty = 30
+            .bounty = 40
         },
         .ship = {
             .spawns = {
@@ -1450,7 +1451,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_GREEN,
         .enemy = {
             .strength = 1.0f,
-            .bounty = 80
+            .bounty = 100
         },
         .ship = {
             .spawns = {
@@ -1489,7 +1490,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             }
         },
         .base = {
-            .health = 50
+            .health = 60
         },
     },
     [ENTITY_TRANSPORT_L1] = {
@@ -1516,7 +1517,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             }
         },
         .base = {
-            .health = 80
+            .health = 90
         },
     },
     [ENTITY_TRANSPORT_L2] = {
@@ -1543,7 +1544,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             }
         },
         .base = {
-            .health = 100
+            .health = 120
         },
     },
     [ENTITY_FLAGSHIP] = {
@@ -1589,7 +1590,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .flags = EIF_NOT_AN_ENTITY
     },
     [ENTITY_SPEED_UPGRADE] = {
-        .name = "+ TRUCK SPEED",
+        .name = "+TRUCK SPEED",
         .base_sprite = {{ 9, 0 }},
         .unlock_price = 0,
         .buy_price = 1000,

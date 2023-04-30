@@ -14,7 +14,7 @@ window.onload = function() {
   canvas = document.getElementById('canvas');
   var activateCanvas = function (event) {
     lastTarget = event.target;
-    window.setFocus();
+    window.focus();
     console.log("Set focus on window");
   }
   var preventScroll = function (event) {
@@ -41,6 +41,25 @@ window.onload = function() {
             canvas: (function() { return document.getElementById('canvas'); })()
         };
     </script>
+        <script type='text/javascript'>
+       // Work-around chromium autoplay policy
+       // https://github.com/emscripten-core/emscripten/issues/6511
+       function resumeAudio(e) {
+ 	  if (typeof Module === 'undefined'
+ 	      || typeof Module.SDL2 == 'undefined'
+ 	      || typeof Module.SDL2.audioContext == 'undefined')
+ 	      return;
+ 	  if (Module.SDL2.audioContext.state == 'suspended') {
+ 	      Module.SDL2.audioContext.resume();
+ 	  }
+ 	  if (Module.SDL2.audioContext.state == 'running') {
+ 	      document.getElementById('canvas').removeEventListener('click', resumeAudio);
+ 	      document.removeEventListener('keydown', resumeAudio);
+ 	  }
+       }
+       document.getElementById('canvas').addEventListener('click', resumeAudio);
+       document.addEventListener('keydown', resumeAudio);
+     </script>
     {{{ SCRIPT }}}
 </body>
 </html>
