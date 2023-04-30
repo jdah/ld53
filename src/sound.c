@@ -20,12 +20,12 @@
 #include <cjam/assert.h>
 #include <cjam/map.h>
 
-#pragma clang attribute push (__attribute__((no_sanitize("undefined"))), apply_to=function)
-#define CUTE_SOUND_SCALAR_MODE
-#define CUTE_SOUND_IMPLEMENTATION
-#define CUTE_SOUND_FORCE_SDL
-#include <cute_sound.h>
-#pragma clang attribute pop
+/* #pragma clang attribute push (__attribute__((no_sanitize("undefined"))), apply_to=function) */
+/* #define CUTE_SOUND_SCALAR_MODE */
+/* #define CUTE_SOUND_IMPLEMENTATION */
+/* #define CUTE_SOUND_FORCE_SDL */
+/* #include <cute_sound.h> */
+/* #pragma clang attribute pop */
 
 #ifdef EMSCRIPTEN
 #include "emscripten.h"

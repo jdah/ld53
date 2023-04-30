@@ -32,13 +32,11 @@ PATH_LIB   = lib
 PATH_CJAM = $(PATH_LIB)/cjam
 PATH_CGLM  = $(PATH_LIB)/cglm
 PATH_SOKOL = $(PATH_LIB)/sokol
-PATH_CUTE = $(PATH_LIB)/cute_headers
 
 INCFLAGS  = -iquotesrc
 INCFLAGS += -I$(PATH_CJAM)
 INCFLAGS += -I$(PATH_CGLM)/include
 INCFLAGS += -I$(PATH_SOKOL)
-INCFLAGS += -I$(PATH_CUTE)
 
 EMCCFLAGS += -std=gnu2x
 EMCCFLAGS += -g3
