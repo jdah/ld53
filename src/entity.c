@@ -512,21 +512,38 @@ void tick_ship(entity *e) {
             palette_get(PALETTE_LIGHT_BLUE),
             20);
     } else {
-        const f32 spt = info->ship.spawns_per_second / TICKS_PER_SECOND;
-        const int n =
-            ((int) (floorf(state->time.tick * spt)))
-                - ((int) (floorf((state->time.tick - 1) * spt)));
+        for (int i = 0; i < (int) ARRLEN(info->ship.spawns); i++) {
+            if (info->ship.spawns[i].spawn_type == ENTITY_TYPE_NONE) {
+                break;
+            }
 
-        struct rand r = rand_create(state->time.tick + e->id.index);
-        const f32 a = rand_f64(&r, 0, TAU);
-        for (int i = 0; i < n; i++) {
-            entity *alien =
-                level_new_entity(state->level, info->ship.spawn_type);
-            entity_set_pos(
-                alien,
-                glms_vec2_add(
-                    e->pos, glms_vec2_scale(VEC2S(cos(a), sin(a)), 5.0f)));
-            sound_play("spawn.wav", 1.0f);
+            const f32 spt =
+                info->ship.spawns[i].spawns_per_second / TICKS_PER_SECOND;
+            const int t = (i * e->id.index * 13) + state->time.tick;
+            const int n =
+                ((int) (floorf(t * spt))) - ((int) (floorf((t - 1) * spt)));
+
+            struct rand r = rand_create(state->time.tick + e->id.index);
+
+            for (int j = 0; j < n; j++) {
+                if (!rand_chance(&r, info->ship.spawns[i].chance)) {
+                    continue;
+                }
+
+                const f32 a = rand_f64(&r, 0, TAU);
+                entity *alien =
+                    level_new_entity(state->level, info->ship.spawns[i].spawn_type);
+                entity_set_pos(
+                    alien,
+                    glms_vec2_add(
+                        e->pos, glms_vec2_scale(VEC2S(cos(a), sin(a)), 5.0f)));
+                sound_play("spawn.wav", 1.0f);
+
+            particle_new_fancy(
+                IVEC2S2V(entity_center(alien)),
+                palette_get(PALETTE_LIGHT_BLUE),
+                4);
+            }
         }
     }
 }
@@ -1200,30 +1217,84 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .bounty = 10
         },
         .ship = {
-            .spawn_type = ENTITY_ALIEN_L0,
-            .spawns_per_second = 0.5f
+            .spawns = {
+                { ENTITY_ALIEN_L0, 0.5f, 1.0f },
+                { ENTITY_ALIEN_L1, 0.025f, 0.1f },
+            }
         },
         .base = {
             .health = 25
         },
     },
+    [ENTITY_SHIP_L1] = {
+        .base_sprite = {{ 1, 8 }},
+        .draw = draw_ship,
+        .tick = tick_ship,
+        .flags = EIF_ENEMY | EIF_SHIP,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 7, 5 }}
+        },
+        .palette = PALETTE_ALIEN_RED,
+        .enemy = {
+            .strength = 1.0f,
+            .bounty = 25
+        },
+        .ship = {
+            .spawns = {
+                { ENTITY_ALIEN_L1, 0.5f, 0.9f },
+                { ENTITY_ALIEN_L1, 0.25f, 0.85f },
+                { ENTITY_ALIEN_TANK, 0.025f, 0.05f },
+            }
+        },
+        .base = {
+            .health = 35
+        },
+    },
+    [ENTITY_SHIP_L2] = {
+        .base_sprite = {{ 1, 8 }},
+        .draw = draw_ship,
+        .tick = tick_ship,
+        .flags = EIF_ENEMY | EIF_SHIP,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 7, 5 }}
+        },
+        .palette = PALETTE_ALIEN_GREEN,
+        .enemy = {
+            .strength = 1.0f,
+            .bounty = 50
+        },
+        .ship = {
+            .spawns = {
+                { ENTITY_ALIEN_L0, 0.25f, 0.5f },
+                { ENTITY_ALIEN_L1, 0.25f, 0.95f },
+                { ENTITY_ALIEN_L2, 0.25f, 0.95f },
+                { ENTITY_ALIEN_TANK, 0.025f, 0.07f },
+                { ENTITY_ALIEN_FAST, 0.025f, 0.07f },
+            }
+        },
+        .base = {
+            .health = 50
+        },
+    },
     [ENTITY_REPAIR] = {
         .name = "REPAIR 10",
-        .base_sprite = {{ 6, 0 }},
+        .base_sprite = {{ 7, 0 }},
         .unlock_price = 0,
         .buy_price = 50,
         .flags = EIF_NOT_AN_ENTITY
     },
     [ENTITY_ARMOR_UPGRADE] = {
         .name = "ARMOR UPGRADE",
-        .base_sprite = {{ 7, 0 }},
+        .base_sprite = {{ 8, 0 }},
         .unlock_price = 0,
         .buy_price = 1000,
         .flags = EIF_NOT_AN_ENTITY
     },
     [ENTITY_SPEED_UPGRADE] = {
         .name = "SPEED UPGRADE",
-        .base_sprite = {{ 8, 0 }},
+        .base_sprite = {{ 9, 0 }},
         .unlock_price = 0,
         .buy_price = 1000,
         .flags = EIF_NOT_AN_ENTITY

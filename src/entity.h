@@ -77,8 +77,11 @@ typedef struct entity_info_s {
     } enemy;
 
     struct {
-        entity_type spawn_type;
-        f32 spawns_per_second;
+        struct {
+            entity_type spawn_type;
+            f32 spawns_per_second;
+            f32 chance;
+        } spawns[32];
     } ship;
 
     struct {
