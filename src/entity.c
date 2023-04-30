@@ -94,7 +94,11 @@ static entity *shoot_bullet(entity_type type, vec2s origin, vec2s dir, ivec2s ta
     entity *e = level_new_entity(state->level, type);
     e->bullet.velocity = glms_vec2_scale(dir, info->bullet.speed);
     entity_set_pos(e, origin);
-    sound_play("shoot.wav", 0.25f);
+
+    if (state->tick_bullet_sounds < 2) {
+        state->tick_bullet_sounds++;
+        sound_play("shoot.wav", 0.25f);
+    }
 
     if (info->bullet.is_shell) {
         e->bullet.has_target = true;
@@ -200,7 +204,6 @@ static void explosion(vec2s pos, f32 radius, f32 damage) {
                 10,
                 2, 4,
                 false);
-            LOG("did %f damage", d);
         }
     }
 
@@ -448,7 +451,7 @@ int priority_alien_target(entity *e, entity *alien) {
     return mod * invdist;
 }
 
-static int alien_path_weight(const level *l, ivec2s p, void*) {
+static int alien_path_weight(const level *l, ivec2s p, entity *e) {
     if (!level_tile_in_bounds(p)) {
         return -1;
     }
@@ -456,13 +459,15 @@ static int alien_path_weight(const level *l, ivec2s p, void*) {
     tile_type tile = l->tiles[p.x][p.y];
     int base = 1;
 
-    switch (tile) {
-    case TILE_MOUNTAIN: return -1;
-    case TILE_LAKE: return -1;
-    case TILE_SLUDGE: base = 10;
-    case TILE_MARSH: base = 5;
-    case TILE_STONE: base = 2;
-    default:
+    if (e->type != ENTITY_ALIEN_GHOST) {
+        switch (tile) {
+        case TILE_MOUNTAIN: return -1;
+        case TILE_LAKE: return -1;
+        case TILE_SLUDGE: base = 10;
+        case TILE_MARSH: base = 5;
+        case TILE_STONE: base = 2;
+        default:
+        }
     }
 
     return base + (l->music_level[p.x][p.y] * 10);
@@ -503,8 +508,8 @@ path:
             &e->path,
             e->tile,
             target->tile,
-            alien_path_weight,
-            NULL);
+            (f_path_weight) alien_path_weight,
+            e);
 
     if (!success) {
         dynlist_free(e->path);
@@ -626,7 +631,7 @@ void tick_bullet(entity *e) {
             explosion(
                 IVEC2S2V(entity_center(e)),
                 6 + (mod * 2),
-                5.0f + (mod * 20.0f));
+                5.0f + (mod * 10.0f));
         }
     } else {
         if (done) {
@@ -915,13 +920,6 @@ static void draw_alien(entity *e) {
 static bool can_place_basic(ivec2s tile) {
     if (!level_tile_in_bounds(tile)) { return false; }
 
-    switch (state->level->tiles[tile.x][tile.y]) {
-    case TILE_BASE: return true;
-    default:
-    }
-
-    return false;
-
     dlist_each(tile_node, &state->level->tile_entities[tile.x][tile.y], it) {
         const int flags = ENTITY_INFO[it.el->type].flags;
         if (!(flags & EIF_DOES_NOT_BLOCK)) {
@@ -929,7 +927,12 @@ static bool can_place_basic(ivec2s tile) {
         }
     }
 
-    return true;
+    switch (state->level->tiles[tile.x][tile.y]) {
+    case TILE_BASE: return true;
+    default:
+    }
+
+    return false;
 }
 
 entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
@@ -961,13 +964,13 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 1, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 200,
-        .buy_price = 100,
+        .unlock_price = 300,
+        .buy_price = 200,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
             .bullet = ENTITY_BULLET_L1,
-            .bps = 6.0f,
+            .bps = 7.0f,
         },
         .aabb = {
             .min = {{ 0, 0 }},
@@ -984,8 +987,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 2, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 500,
-        .buy_price = 250,
+        .unlock_price = 1000,
+        .buy_price = 400,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1007,8 +1010,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 7 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 400,
-        .buy_price = 150,
+        .unlock_price = 1000,
+        .buy_price = 250,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1031,8 +1034,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 4, 7 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 800,
-        .buy_price = 500,
+        .unlock_price = 1500,
+        .buy_price = 1200,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1055,8 +1058,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 4 }},
         .draw = draw_basic,
         .tick = tick_mine,
-        .unlock_price = 100,
-        .buy_price = 75,
+        .unlock_price = 200,
+        .buy_price = 150,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
         .aabb = {
@@ -1070,8 +1073,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 4, 4 }},
         .draw = draw_basic,
         .tick = tick_mine,
-        .unlock_price = 200,
-        .buy_price = 125,
+        .unlock_price = 400,
+        .buy_price = 200,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
         .aabb = {
@@ -1085,8 +1088,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 5, 4 }},
         .draw = draw_basic,
         .tick = tick_mine,
-        .unlock_price = 500,
-        .buy_price = 175,
+        .unlock_price = 1500,
+        .buy_price = 400,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
         .aabb = {
@@ -1340,12 +1343,12 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
         .palette = PALETTE_ALIEN_YELLOW,
         .enemy = {
-            .speed = 2.2f,
-            .strength = 0.9f,
+            .speed = 2.5f,
+            .strength = 0.6f,
             .bounty = 50
         },
         .base = {
-            .health = 10
+            .health = 50
         },
     },
     [ENTITY_ALIEN_TANK] = {
@@ -1359,12 +1362,12 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
         .palette = PALETTE_ALIEN_GREY,
         .enemy = {
-            .speed = 0.5f,
-            .strength = 2.5f,
+            .speed = 0.6f,
+            .strength = 4.0f,
             .bounty = 100
         },
         .base = {
-            .health = 50
+            .health = 200
         },
     },
     [ENTITY_ALIEN_GHOST] = {
@@ -1378,12 +1381,12 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
         .palette = PALETTE_ALIEN_GREY,
         .enemy = {
-            .speed = 1.4f,
+            .speed = 1.8f,
             .strength = 1.2f,
             .bounty = 100
         },
         .base = {
-            .health = 20
+            .health = 50
         },
     },
     [ENTITY_SHIP_L0] = {
@@ -1532,7 +1535,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
         .ship = {
             .spawns = {
-                { ENTITY_ALIEN_L0, 3.0f, 0.9f },
+                { ENTITY_ALIEN_L0, 1.0f, 0.9f },
                 { ENTITY_ALIEN_L1, 2.0f, 0.85f },
                 { ENTITY_ALIEN_TANK, 0.25f, 0.5f },
                 { ENTITY_ALIEN_FAST, 0.25f, 0.5f },
@@ -1559,16 +1562,16 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
         .ship = {
             .spawns = {
-                { ENTITY_ALIEN_L0, 3.0f, 0.9f },
-                { ENTITY_ALIEN_L1, 2.0f, 0.85f },
-                { ENTITY_ALIEN_L2, 2.0f, 0.85f },
+                { ENTITY_ALIEN_L0, 1.0f, 0.9f },
+                { ENTITY_ALIEN_L1, 1.0f, 0.85f },
+                { ENTITY_ALIEN_L2, 1.0f, 0.85f },
                 { ENTITY_ALIEN_TANK, 0.5f, 0.5f },
                 { ENTITY_ALIEN_FAST, 0.5f, 0.5f },
                 { ENTITY_ALIEN_GHOST, 0.5f, 0.5f },
             }
         },
         .base = {
-            .health = 250
+            .health = 500
         },
     },
     [ENTITY_REPAIR] = {

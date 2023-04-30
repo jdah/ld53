@@ -57,6 +57,7 @@ bool level_tile_has_entities(level*, ivec2s);
 
 int level_path_default_weight(const level *l, ivec2s p, void*);
 
+typedef int (*f_path_weight)(const struct level_s*, ivec2s, void*);
 bool level_path(
     level *level,
     DYNLIST(ivec2s) *dst,

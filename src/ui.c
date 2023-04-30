@@ -89,10 +89,10 @@ static int price_for_entity(entity_type type) {
             return 50;
         } break;
         case ENTITY_ARMOR_UPGRADE: {
-            return 450 + state->stats.truck_armor_level * 300;
+            return 450 + state->stats.truck_armor_level * 1500;
         } break;
         case ENTITY_SPEED_UPGRADE: {
-            return 500 + state->stats.truck_speed_level * 300;
+            return 500 + state->stats.truck_speed_level * 1500;
         } break;
         }
     }
@@ -776,7 +776,7 @@ static void update_endgame() {
         state_set_level(state, state->level_index);
     }
 
-    if (input_get(&state->input, "space") & INPUT_PRESS) {
+    if (input_get(&state->input, "space|1") & INPUT_PRESS) {
         if (lost) {
             state_set_stage(state, STAGE_MAIN_MENU);
         } else if (state->level_index == NUM_LEVELS - 1) {

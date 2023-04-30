@@ -311,7 +311,7 @@ void gfx_batcher_init(gfx_batcher *batcher) {
     batcher->instance_data =
         sg_make_buffer(
             &(sg_buffer_desc) {
-                .size = 8 * 1024 * 1024,
+                .size = 64 * 1024 * 1024,
                 .usage = SG_USAGE_STREAM
             });
 }

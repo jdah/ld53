@@ -14,6 +14,8 @@
 // TODO TURN OFF
 #define HACKS
 
+#define SOUNDS_PER_TICK 2
+
 #define TILE_SIZE_PX 8
 
 #define TICKS_PER_SECOND 30

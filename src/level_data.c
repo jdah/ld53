@@ -227,6 +227,28 @@ level_data LEVELS[NUM_LEVELS] = {
         },
         .bonus = 1000
     },
+    [10] = {
+        .title = "$35SPECIAL DELIVERY II",
+        .map = {
+            "                   ",
+            "    t    x         ",
+            "               x   ",
+            "    x      x       ",
+            "                   ",
+            "                   ",
+            "SrrrrrrrrrrrrrrrrrF",
+            "                   ",
+            "        x          ",
+            "                t  ",
+            "                   ",
+            "    x              ",
+            "                   ",
+        },
+        .ships = {
+            { ENTITY_TRANSPORT_L0, 2 },
+        },
+        .bonus = 1050
+    },
     [11] = {
         .title = "$07MOUNTAIN PASS",
         .map = {
@@ -301,16 +323,16 @@ level_data LEVELS[NUM_LEVELS] = {
         .title = "$36MONEY PIT",
         .map = {
             "hhhhhhhhhhhhhhhhhhh",
-            "hHHhhrrrrrrrrrrrrrr",
+            "hHHhhrrrrrrrrrrrrrF",
             "hHHhhrhhhhhhhhhhhhh",
             "hHHhhrrrrrrrhHHhhhh",
             "hHHhhxxxxxxrhHHhhhh",
             "hHHhhxxxxxxrhHHhhhh",
             "hHHhhxxxxxxrhHHhhhh",
-            "hHHhhxxxxxxrhHHhhhh",
-            "hhhhhxxxxxxrhHHhhhh",
-            "Srrrrrrrrrrrhhhhhhh",
-            "hhhhhhhhhhhhhhhhhhh",
+            "   hhxxxxxxrhHHhhhh",
+            " S hhxxxxxxrhHHhhhh",
+            " rrrrrrrrrrrhhhhhhh",
+            " hhhhhhhhhhhhhhhhhh",
             "hhhhhhhhhhhhhhhhhhh",
             "hhhhhhhhhhhhhhhhhhh",
         },
@@ -341,7 +363,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_SHIP_L0, 16 },
             { ENTITY_TRANSPORT_L1, 2 },
         },
-        .bonus = 1500
+        .bonus = 1800
     },
     [16] = {
         .title = "$36I'M GOING TO\nBE A WHILE...\n$27(REDUX)",
@@ -364,7 +386,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_SHIP_L2, 8 },
             { ENTITY_TRANSPORT_L1, 3 },
         },
-        .bonus = 1500
+        .bonus = 1900
     },
     [17] = {
         .title = "$06STAIR-ER\nSTEPPER-ER",
@@ -387,7 +409,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_TRANSPORT_L0, 4 },
             { ENTITY_TRANSPORT_L1, 4 },
         },
-        .bonus = 1500
+        .bonus = 1950
     },
     [18] = {
         .title = "$36EASY-ER MONEY-ER",
@@ -409,7 +431,7 @@ level_data LEVELS[NUM_LEVELS] = {
         .ships = {
             { ENTITY_TRANSPORT_L1, 8 },
         },
-        .bonus = 1500
+        .bonus = 2000
     },
     [19] = {
         .title = "$42S\n(LIKE THE COOL ONE\nEVERYONE DRAWS)",
@@ -432,7 +454,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_SHIP_L1, 8 },
             { ENTITY_TRANSPORT_L1, 4 },
         },
-        .bonus = 1500
+        .bonus = 2100
     },
     [20] = {
         .title = "$44ACTUALLY THOSE\nDON'T HAVE TO BE\nON THE MAP EDGES\n",
@@ -454,7 +476,7 @@ level_data LEVELS[NUM_LEVELS] = {
         .ships = {
             { ENTITY_SHIP_L0, 1 },
         },
-        .bonus = 1500
+        .bonus = 2200
     },
     [21] = {
         .title = "$44FOR EXAMPLE",
@@ -476,7 +498,7 @@ level_data LEVELS[NUM_LEVELS] = {
         .ships = {
             { ENTITY_SHIP_L1, 16 },
         },
-        .bonus = 1500
+        .bonus = 10
     },
     [22] = {
         .title = "$22OK I'LL STOP\nHERE'S A LONG ONE",
@@ -500,7 +522,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_SHIP_L1, 3 },
             { ENTITY_TRANSPORT_L2, 1 },
         },
-        .bonus = 1500
+        .bonus = 20
     },
     [23] = {
         .title = "$44JUST KIDDING",
@@ -522,7 +544,7 @@ level_data LEVELS[NUM_LEVELS] = {
         .ships = {
             { ENTITY_TRANSPORT_L2, 4 },
         },
-        .bonus = 1500
+        .bonus = 2300
     },
     [24] = {
         .title = "$61SINUSOIDAL",
@@ -545,7 +567,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_SHIP_L0, 4 },
             { ENTITY_TRANSPORT_L2, 6 },
         },
-        .bonus = 1500
+        .bonus = 2400
     },
     [25] = {
         .title = "$07LONELY MOUNTAIN",
@@ -567,7 +589,7 @@ level_data LEVELS[NUM_LEVELS] = {
         .ships = {
             { ENTITY_FLAGSHIP, 1 },
         },
-        .bonus = 1500
+        .bonus = 2500
     },
     [26] = {
         .title = "$07(NOT SO)\nLONELY MOUNTAIN(S)",
@@ -589,7 +611,7 @@ level_data LEVELS[NUM_LEVELS] = {
         .ships = {
             { ENTITY_SHIP_L0, 20 },
         },
-        .bonus = 1500
+        .bonus = 2500
     },
     [27] = {
         .title = "$51AMBUSH",
@@ -612,7 +634,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_FLAGSHIP, 2 },
             { ENTITY_SHIP_L0, 10 },
         },
-        .bonus = 1500
+        .bonus = 2500
     },
     [28] = {
         .title = "$36EASY-EST MONEY-EST",
@@ -634,7 +656,7 @@ level_data LEVELS[NUM_LEVELS] = {
         .ships = {
             { ENTITY_FLAGSHIP, 3 },
         },
-        .bonus = 1500
+        .bonus = 10000
     },
     [29] = {
         .title = "$56DEATH SPIRAL",
@@ -660,7 +682,7 @@ level_data LEVELS[NUM_LEVELS] = {
             { ENTITY_TRANSPORT_L0, 2 },
             { ENTITY_TRANSPORT_L1, 2 },
             { ENTITY_TRANSPORT_L2, 2 },
-            { ENTITY_FLAGSHIP, 4},
+            { ENTITY_FLAGSHIP, 8},
         },
         .bonus = 1500
     },

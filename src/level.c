@@ -342,10 +342,10 @@ static void tile_draw(
         } else if (surround[1][2] && surround[0][1]) {
             // bottom right corner
             offset = (ivec2s) {{ 2, 0 }};
-        } else if (surround[1][0] && surround[1][2]) {
+        } else if (surround[1][0] || surround[1][2]) {
             // vertical
             offset = (ivec2s) {{ 0, 1 }};
-        } else if (surround[0][1] && surround[2][1]) {
+        } else if (surround[0][1] || surround[2][1]) {
             // horizontal
             offset = (ivec2s) {{ 1, 0 }};
         }

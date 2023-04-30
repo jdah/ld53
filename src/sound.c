@@ -1,4 +1,5 @@
 #include "sound.h"
+#include "state.h"
 #include "util.h"
 
 #include "../lib/soloud/include/soloud_c.h"
@@ -62,6 +63,12 @@ static bool ensure_init() {
 
 void sound_play(const char *resource, f32 volume) {
     if (!ensure_init()) { return; }
+
+    if (state->tick_sounds >= SOUNDS_PER_TICK) {
+        return;
+    }
+
+    state->tick_sounds++;
 
     static bool init;
 

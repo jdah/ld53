@@ -73,6 +73,8 @@ typedef struct {
 
     int done_screen_state;
 
+    int tick_bullet_sounds;
+
     main_menu _main_menu;
 
     cursor_mode cursor_mode;
@@ -83,6 +85,8 @@ typedef struct {
     level *level;
 
     bool hacks;
+
+    int tick_sounds;
 
     vec4s clear_color;
 } global_state;

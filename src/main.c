@@ -215,6 +215,8 @@ static void frame() {
                         IVEC2S2V(level_tile_to_px(state->level->finish)));
                 }
 
+            } else if (state->stage == STAGE_BUILD) {
+                state_set_stage(state, STAGE_PLAY);
             }
         }
 
@@ -305,6 +307,8 @@ static void frame() {
     for (u64 i = 0; i < state->time.frame_ticks; i++) {
         state->time.tick++;
         state->time.animtick = state->time.tick / 20;
+        state->tick_bullet_sounds = 0;
+        state->tick_sounds = 0;
 
         if (state->stage != STAGE_MAIN_MENU) {
             level_tick(state->level);
@@ -341,7 +345,9 @@ static void frame() {
         level_draw(state->level);
 
         // draw particles
+#define MAX_DRAW_PARTICLES 1024
         dynlist_each(state->particles, it) {
+            if (it.i >= MAX_DRAW_PARTICLES) { break; }
             particle_draw(it.el);
         }
 
