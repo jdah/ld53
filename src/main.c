@@ -240,6 +240,11 @@ static void frame() {
     }
 
     // handle state transition
+    if (state->last_stage != state->stage) {
+        // TODO: clear particles?
+        /* dynlist_resize(state->particles, 0); */
+    }
+
     if (state->last_stage == STAGE_BUILD
         && state->stage == STAGE_PLAY) {
         level_go(state->level);
@@ -255,6 +260,15 @@ static void frame() {
     for (u64 i = 0; i < state->time.frame_ticks; i++) {
         state->time.tick++;
         level_tick(state->level);
+
+        // tick particles
+        dynlist_each(state->particles, it) {
+            particle_tick(it.el);
+
+            if (it.el->delete) {
+                dynlist_remove_it(state->particles, it);
+            }
+        }
     }
 
     int w, h;
@@ -263,6 +277,11 @@ static void frame() {
     sg_begin_pass(offscreen.pass, &offscreen.passaction);
 
     level_draw(state->level);
+
+    // draw particles
+    dynlist_each(state->particles, it) {
+        particle_draw(it.el);
+    }
 
     ui_draw();
 

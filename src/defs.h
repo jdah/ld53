@@ -94,3 +94,9 @@ enum {
     LTF_NONE = 0,
     LTF_ALIEN_SPAWN = 1 << 0
 };
+
+typedef enum {
+    PARTICLE_NONE = 0,
+    PARTICLE_TEXT,
+    PARTICLE_PIXEL
+} particle_type;

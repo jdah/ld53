@@ -16,6 +16,8 @@ typedef struct entity_s {
     ivec2s px;
     ivec2s tile;
 
+    vec2s last_move;
+
     union {
         struct {
             direction dir;
@@ -61,10 +63,12 @@ typedef struct entity_info_s {
     int unlock_price, buy_price;
 
     aabb aabb;
+    int palette;
 
     struct {
         f32 speed;
         f32 strength;
+        int bounty;
     } alien;
 
     struct {
@@ -80,6 +84,7 @@ typedef struct entity_info_s {
 } entity_info;
 
 void entity_set_pos(entity*, vec2s);
+ivec2s entity_center(const entity *e);
 void entity_tick(entity*);
 void entity_update(entity*, f32 dt);
 void entity_draw(entity*);

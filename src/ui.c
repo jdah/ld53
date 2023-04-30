@@ -64,7 +64,15 @@ static aabb get_aabb_button() {
         ((ivec2s) {{ 38, 10 }}));
 }
 
+static bool can_buy() {
+    return state->stage == STAGE_BUILD || state->stage == STAGE_PLAY;
+}
+
 bool update_sidebar() {
+    if (!can_buy()) {
+        return false;
+    }
+
     const bool select = input_get(&state->input, "mouse_left") & INPUT_PRESS;
 
     for (int y = 0; y < GRID_SIZE.y; y++) {
@@ -128,6 +136,11 @@ bool update_sidebar() {
 }
 
 static bool update_cursor() {
+    if (!can_buy()) {
+        state->ui.place_entity = ENTITY_TYPE_NONE;
+        return false;
+    }
+
     const bool
         select = input_get(&state->input, "mouse_left") & INPUT_PRESS,
         deselect = input_get(&state->input, "mouse_right") & INPUT_PRESS;
@@ -147,6 +160,13 @@ static bool update_cursor() {
             if (in_level && can_place) {
                 // TODO: happy sound
                 state->stats.money -= info->buy_price;
+
+                particle_new_text(
+                    IVEC2S2V(state->input.cursor.tile_px),
+                    palette_get(PALETTE_RED),
+                    TICKS_PER_SECOND,
+                    "-%d",
+                    info->buy_price);
 
                 entity *e = level_new_entity(state->level, state->ui.place_entity);
                 entity_set_pos(e, IVEC2S2V(state->input.cursor.tile_px));

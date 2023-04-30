@@ -5,6 +5,9 @@
 #include "defs.h"
 #include "input.h"
 #include "gfx.h"
+#include "particle.h"
+
+#include <cjam/dynlist.h>
 
 typedef struct level_s level;
 
@@ -48,6 +51,9 @@ typedef struct {
         char desc[256];
         entity_type place_entity;
     } ui;
+
+    // TODO
+    DYNLIST(particle) particles;
 
     // current game state
     stage stage, last_stage;

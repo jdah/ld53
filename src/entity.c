@@ -2,6 +2,7 @@
 #include "direction.h"
 #include "gfx.h"
 #include "level.h"
+#include "palette.h"
 #include "state.h"
 #include "util.h"
 
@@ -46,6 +47,10 @@ static aabb aabb_for_entity(const entity *e) {
     return aabb_translate(info->aabb, VEC2S2I(e->pos));
 }
 
+ivec2s entity_center(const entity *e) {
+    return aabb_center(aabb_for_entity(e));
+}
+
 static int find_collisions(const aabb *aabb, entity **entities, int n) {
     const ivec2s
         tmin = level_clamp_tile(glms_ivec2_add(level_px_to_tile(aabb->min), IVEC2S(-1))),
@@ -79,7 +84,8 @@ static entity *shoot_bullet(entity_type type, vec2s origin, vec2s dir) {
 }
 
 // move e on path, return true if hit target
-static bool entity_move_on_path(entity *e, f32 speed, bool center, direction *dir_out) {
+static bool entity_move_on_path(
+    entity *e, f32 speed, bool center, vec2s *move_out, direction *dir_out) {
     ASSERT(e->path);
     if (dynlist_size(e->path) == 1) {
         return true;
@@ -99,6 +105,10 @@ static bool entity_move_on_path(entity *e, f32 speed, bool center, direction *di
 
     // TODO: try_move
     entity_set_pos(e, glms_vec2_add(e->pos, m));
+
+    if (move_out) {
+        *move_out = m;
+    }
 
     if (dir_out) {
         *dir_out = direction_from_vec2s(m, DIRECTION_DOWN);
@@ -190,19 +200,42 @@ static void tick_truck(entity *e) {
     }
 
     // move to next path point
-    if (success) {
-        if (entity_move_on_path(e, 0.5f, false, &e->truck.dir)) {
+    if (e->path) {
+        if (state->time.tick % 5 == 0) {
+            particle_new_smoke(
+                IVEC2S2V(
+                    glms_ivec2_add(entity_center(e), IVEC2S(1, 2))),
+                palette_get(PALETTE_LIGHT_GRAY),
+                35);
+        }
+        if (entity_move_on_path(e, 0.5f, false, &e->last_move, &e->truck.dir)) {
             state_set_stage(state, STAGE_DONE);
         }
     }
 }
 
 void tick_alien(entity *e) {
+    e->last_move = VEC2S(0);
+
     if (state->stage != STAGE_PLAY) { return; }
+
+    const entity_info *info = &ENTITY_INFO[e->type];
 
     // TODO: splatter
     if (e->alien.health <= 0) {
         e->delete = true;
+        particle_new_text(
+            IVEC2S2V(entity_center(e)),
+            palette_get(PALETTE_YELLOW),
+            TICKS_PER_SECOND,
+            "+%d",
+            info->alien.bounty);
+        particle_new_multi_splat(
+            IVEC2S2V(entity_center(e)),
+            palette_get(info->palette),
+            TICKS_PER_SECOND,
+            3, 5);
+        state->stats.money += info->alien.bounty;
         return;
     }
 
@@ -235,12 +268,11 @@ move:
         return;
     }
 
-    const entity_info *info = &ENTITY_INFO[e->type];
     const f32 speed = ALIEN_BASE_SPEED * info->alien.speed;
 
     direction dir = DIRECTION_DOWN;
 
-    if (entity_move_on_path(e, speed, true, &dir)
+    if (entity_move_on_path(e, speed, true, &e->last_move, &dir)
         && ((e->id.index + state->time.tick) % TICKS_PER_SECOND) == 0) {
         dir =
             direction_from_vec2s(
@@ -375,7 +407,9 @@ static void draw_alien(entity *e) {
     entity_info *info = &ENTITY_INFO[e->type];
     const ivec2s base = info->base_sprite;
     const int i =
-        ((int) roundf(state->time.tick / (4 / info->alien.speed))) % 2;
+        glms_vec2_norm(e->last_move) > 0.0001f ?
+            (((int) roundf(state->time.tick / (4 / info->alien.speed))) % 2)
+            : 0;
     ivec2s index_offset, sprite_offset = (ivec2s) {{ 0, 0 }};
     int flags = GFX_NO_FLAGS;
 
@@ -457,6 +491,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 0, 0 }},
             .max = {{ 7, 7 }}
         },
+        .palette = PALETTE_L0,
     },
     [ENTITY_TURRET_L1] = {
         .name = "TURRET MK. 2",
@@ -474,6 +509,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 0, 0 }},
             .max = {{ 7, 7 }}
         },
+        .palette = PALETTE_L1,
     },
     [ENTITY_TURRET_L2] = {
         .name = "TURRET MK. 3",
@@ -491,6 +527,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 0, 0 }},
             .max = {{ 6, 6 }}
         },
+        .palette = PALETTE_L2,
     },
     [ENTITY_MINE_L0] = {
         .name = "MINE MK. 1",
@@ -503,6 +540,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
         },
+        .palette = PALETTE_L0,
     },
     [ENTITY_MINE_L1] = {
         .name = "MINE MK. 2",
@@ -515,6 +553,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
         },
+        .palette = PALETTE_L1,
     },
     [ENTITY_MINE_L2] = {
         .name = "MINE MK. 3",
@@ -527,6 +566,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
         },
+        .palette = PALETTE_L2,
     },
     [ENTITY_RADAR_L0] = {
         .name = "RADAR MK. 1",
@@ -539,6 +579,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 1, 0 }},
             .max = {{ 5, 5 }}
         },
+        .palette = PALETTE_L0,
     },
     [ENTITY_RADAR_L1] = {
         .name = "RADAR MK. 2",
@@ -551,6 +592,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 1, 0 }},
             .max = {{ 5, 5 }}
         },
+        .palette = PALETTE_L1,
     },
     [ENTITY_BOOMBOX] = {
         .name = "BOOMBOX",
@@ -563,6 +605,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 1, 0 }},
             .max = {{ 5, 5 }}
         },
+        .palette = PALETTE_BLACK,
     },
     [ENTITY_BULLET_L0] = {
         .base_sprite = {{ 0, 7 }},
@@ -577,6 +620,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .bullet = {
             .speed = 80.0f
         },
+        .palette = 8,
     },
     [ENTITY_BULLET_L1] = {
         .base_sprite = {{ 0, 7 }},
@@ -591,6 +635,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .bullet = {
             .speed = 100.0f
         },
+        .palette = 8,
     },
     [ENTITY_BULLET_L2] = {
         .base_sprite = {{ 0, 7 }},
@@ -605,6 +650,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .bullet = {
             .speed = 150.0f
         },
+        .palette = 8,
     },
     [ENTITY_FLAG] = {
         .base_sprite = {{ 7, 1 }},
@@ -625,9 +671,11 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .min = {{ 0, 0 }},
             .max = {{ 4, 4 }}
         },
+        .palette = PALETTE_ALIEN_GREEN,
         .alien = {
             .speed = 1.0f,
             .strength = 1.0f,
+            .bounty = 5
         },
         .base = {
             .alien = { .health = 10 }
