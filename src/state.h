@@ -88,6 +88,7 @@ ALWAYS_INLINE void state_set_stage(global_state *s, stage stage) {
     LOG("from stage %d -> %d", s->stage, stage);
     s->stage = stage;
     s->stage_change_tick = s->time.tick;
+    s->title_state = 0;
 }
 
 void state_set_level(global_state *s, int level);

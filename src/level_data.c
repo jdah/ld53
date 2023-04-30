@@ -19,9 +19,30 @@ level_data LEVELS[NUM_LEVELS] = {
             "                   ",
         },
         .ships = {
-            { ENTITY_SHIP_L2, 1 },
-            { ENTITY_SHIP_L2, 1 }
+            { ENTITY_SHIP_L0, 2 },
         },
         .bonus = 100
+    },
+    [1] = {
+        .title = "$34A SIMPLE JOB",
+        .map = {
+            "                   ",
+            "       x           ",
+            "                   ",
+            "           x       ",
+            "               x   ",
+            "     l             ",
+            "        rrrrrrrrrrF",
+            "Srrrrrrrr          ",
+            "         l   x     ",
+            "     x             ",
+            "                   ",
+            "           x       ",
+            "                   ",
+        },
+        .ships = {
+            { ENTITY_SHIP_L0, 4 },
+        },
+        .bonus = 150
     }
 };

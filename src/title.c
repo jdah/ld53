@@ -13,9 +13,12 @@ void title_draw() {
     snprintf(buf0, sizeof(buf0), "LEVEL %d\n", state->level_index + 1);
 
     const int since = state->time.tick - state->stage_change_tick;
-    if (since == 40 && state->title_state != 1) {
+    if (state->title_state == 0) {
+        sound_play("win.wav", 1.0f);
+        state->title_state++;
+    } else if (since == 40 && state->title_state == 1) {
         sound_play("explode.wav", 1.0f);
-        state->title_state = 1;
+        state->title_state++;
     }
     if (since > 40) {
         snprintf(buf1, sizeof(buf1), "%s", state->level->data->title);

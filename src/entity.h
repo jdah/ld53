@@ -32,6 +32,8 @@ typedef struct entity_s {
         } turret;
         struct {
             vec2s velocity;
+            ivec2s target;
+            bool has_target;
         } bullet;
         struct {
             direction dir;
@@ -86,11 +88,13 @@ typedef struct entity_info_s {
 
     struct {
         f32 speed;
+        bool is_shell;
     } bullet;
 
     struct {
         entity_type bullet;
         f32 bps;
+        bool is_cannon;
     } turret;
 
     struct {

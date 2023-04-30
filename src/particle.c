@@ -28,6 +28,11 @@ particle *particle_new_text(
     vsnprintf(p.text.str, sizeof(p.text.str), fmt, ap);
     va_end(ap);
 
+    const int width = font_width(p.text.str);
+    if (p.pos.x + width > TARGET_SIZE.x) {
+        p.pos.x = TARGET_SIZE.x - width;
+    }
+
     particle *res = dynlist_push(state->particles);
     *res = p;
     return res;
@@ -47,6 +52,24 @@ particle *particle_new_smoke(
         .z = Z_LEVEL_PARTICLE,
         .color = color,
         .vel = VEC2S(rand_f64(&r, -0.2f, 0.2f), rand_f64(&r, 1.0f, 1.3f)),
+        .drag = VEC2S(0.9f),
+    };
+    return res;
+}
+
+particle *particle_new_music(
+    vec2s pos,
+    int ticks) {
+    struct rand r = rand_create(pos.x * pos.y + state->time.tick);
+    particle *res;
+    *(res = dynlist_push(state->particles)) = (particle) {
+        .type = PARTICLE_MUSIC,
+        .lifetime = ticks,
+        .ticks = ticks,
+        .pos = pos,
+        .z = Z_LEVEL_PARTICLE,
+        .color = COLOR_WHITE,
+        .vel = VEC2S(rand_f64(&r, -0.7f, 0.7f), rand_f64(&r, 0.3f, 0.4f)),
         .drag = VEC2S(0.9f),
     };
     return res;
@@ -190,6 +213,21 @@ void particle_draw(particle *p) {
                 .pos = p->pos,
                 .index = {{ 1, 7 }},
                 .color = p->color,
+                .z = p->z,
+                .flags = GFX_NO_FLAGS
+            });
+    } break;
+    case PARTICLE_MUSIC: {
+        gfx_batcher_push_sprite(
+            &state->batcher,
+            &state->atlas.tile,
+            &(gfx_sprite) {
+                .pos = p->pos,
+                .index = {{ 3, 2 }},
+                .color = (vec4s) {{
+                    p->color.r, p->color.g, p->color.b,
+                    clamp(p->color.a * (p->ticks / (f32) (p->lifetime)), 0.0f, 1.0f),
+                }},
                 .z = p->z,
                 .flags = GFX_NO_FLAGS
             });

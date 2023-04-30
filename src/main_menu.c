@@ -105,7 +105,7 @@ void main_menu_update(main_menu *mm) {
 
         if (input_get(&state->input, "space|return") & INPUT_PRESS) {
             if (mm->index == MMI_START) {
-                sound_play("title.wav", 1.0f);
+                /* sound_play("title.wav", 1.0f); */
                 state_set_stage(state, STAGE_TITLE);
                 state_set_level(state, 0);
             } else {

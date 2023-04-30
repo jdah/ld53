@@ -28,6 +28,8 @@ static const entity_type buy_entities[GRID_WIDTH][GRID_HEIGHT] = {
     [1][GRID_HEIGHT - 3] = ENTITY_RADAR_L1,
     [2][GRID_HEIGHT - 3] = ENTITY_BOOMBOX,
     [0][GRID_HEIGHT - 4] = ENTITY_DECOY_TRUCK,
+    [1][GRID_HEIGHT - 4] = ENTITY_CANNON_L0,
+    [2][GRID_HEIGHT - 4] = ENTITY_CANNON_L1,
     /* [1][GRID_HEIGHT - 3] = ENTITY_RADAR_L1, */
     /* [2][GRID_HEIGHT - 3] = ENTITY_BOOMBOX, */
     [0][GRID_HEIGHT - 5] = ENTITY_REPAIR,
@@ -205,6 +207,15 @@ bool update_sidebar() {
                     state->stats.truck_speed_level++;
                 } break;
                 }
+
+                particle *p =
+                    particle_new_text(
+                        IVEC2S2V(state->input.cursor.pos),
+                        palette_get(PALETTE_RED),
+                        TICKS_PER_SECOND,
+                        "-%d",
+                        price);
+                p->z = Z_UI - 0.004f;
             } else {
                 state->ui.place_entity = type;
             }

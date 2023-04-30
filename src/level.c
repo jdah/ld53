@@ -110,6 +110,7 @@ void level_go(level *level) {
         if (type == ENTITY_TYPE_NONE) { break; }
 
         for (int j = 0; j < level->data->ships[i].count; j++) {
+retry:;
             const int sz = dynlist_size(ship_locations);
             if (sz == 0) {
                 WARN("out of ship locations!");
@@ -118,8 +119,18 @@ void level_go(level *level) {
 
             const int k = rand_n(&r, 0, sz - 1);
             const ivec2s p = dynlist_remove(ship_locations, k);
-            LOG("here!!, %d %d", p.x, p.y);
 
+            // check for entities
+            entity *entities[64];
+            const int n = level_get_tile_entities(level, p, entities, 64);
+            for (int k = 0; k < n; k++) {
+                if (!(E_INFO(entities[i])->flags & EIF_CAN_SPAWN)) {
+                    LOG("can't spawn on %d, %d", p.x, p.y);
+                    goto retry;
+                }
+            }
+
+            LOG("spawning!!, %d %d", p.x, p.y);
             entity *ship = level_new_entity(level, type);
             entity_set_pos(ship, IVEC2S2V(level_tile_to_px(p)));
         }
@@ -155,6 +166,24 @@ deleted:
     }
 
     dynlist_free(delete_entities);
+
+    // TODO: very inefficient
+    level_update_music(level);
+}
+
+void level_update_music(level *l) {
+    memset(&l->music_level, 0, sizeof(l->music_level));
+    dlist_each(node, &l->all_entities, it) {
+        if (it.el->type != ENTITY_BOOMBOX) { continue; }
+
+        for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+                const ivec2s pos = {{ it.el->tile.x + x, it.el->tile.y + y }};
+                if (!level_tile_in_bounds(pos)) { continue; }
+                l->music_level[pos.x][pos.y]++;
+            }
+        }
+    }
 }
 
 void level_update(level *level, f32 dt) {
@@ -208,7 +237,7 @@ static void tile_draw(
         }};
 
         if (level->tiles[lpos.x][lpos.y] == tile
-            && rand_chance(&rng, 0.21f)) {
+            && rand_chance(&rng, 0.17f)) {
             // draw grass
             gfx_batcher_push_sprite(
                 &state->batcher,

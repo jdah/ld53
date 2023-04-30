@@ -44,7 +44,7 @@ typedef struct aabb_s {
     })
 
 #define AABB_CH(_center, _half) ({                                    \
-        const vec2s __c = (_center), __h = (_half);                     \
+        const ivec2s __c = (_center), __h = (_half);                     \
         ((aabb) { glms_ivec2_sub(__c, __h), glms_ivec2_add(__c, __h)});             \
     })
 

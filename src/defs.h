@@ -81,6 +81,8 @@ typedef enum {
     ENTITY_TURRET_L0,
     ENTITY_TURRET_L1,
     ENTITY_TURRET_L2,
+    ENTITY_CANNON_L0,
+    ENTITY_CANNON_L1,
     ENTITY_MINE_L0,
     ENTITY_MINE_L1,
     ENTITY_MINE_L2,
@@ -89,7 +91,8 @@ typedef enum {
     ENTITY_BULLET_L0,
     ENTITY_BULLET_L1,
     ENTITY_BULLET_L2,
-    ENTITY_BULLET_L3,
+    ENTITY_SHELL_L0,
+    ENTITY_SHELL_L1,
     ENTITY_BOOMBOX,
     ENTITY_START_POINT,
     ENTITY_FLAG,
@@ -121,7 +124,8 @@ enum {
     EIF_PLACEABLE = 1 << 2,
     EIF_ALIEN = 1 << 3,
     EIF_SHIP = 1 << 4,
-    EIF_NOT_AN_ENTITY = 1 << 5
+    EIF_NOT_AN_ENTITY = 1 << 5,
+    EIF_CAN_SPAWN = 1 << 6,
 };
 
 // level tile flags
@@ -134,7 +138,8 @@ typedef enum {
     PARTICLE_NONE = 0,
     PARTICLE_TEXT,
     PARTICLE_PIXEL,
-    PARTICLE_FANCY
+    PARTICLE_FANCY,
+    PARTICLE_MUSIC,
 } particle_type;
 
 typedef enum {

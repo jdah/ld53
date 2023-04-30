@@ -31,6 +31,10 @@ particle *particle_new_smoke(
     vec4s color,
     int ticks);
 
+particle *particle_new_music(
+    vec2s pos,
+    int ticks);
+
 particle *particle_new_splat(
     vec2s pos,
     vec4s color,

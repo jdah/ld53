@@ -89,12 +89,18 @@ static int find_collisions(const aabb *aabb, entity **entities, int n) {
     return i;
 }
 
-static entity *shoot_bullet(entity_type type, vec2s origin, vec2s dir) {
+static entity *shoot_bullet(entity_type type, vec2s origin, vec2s dir, ivec2s target) {
     entity_info *info = &ENTITY_INFO[type];
     entity *e = level_new_entity(state->level, type);
     e->bullet.velocity = glms_vec2_scale(dir, info->bullet.speed);
     entity_set_pos(e, origin);
     sound_play("shoot.wav", 0.25f);
+
+    if (info->bullet.is_shell) {
+        e->bullet.has_target = true;
+        e->bullet.target = target;
+    }
+
     return e;
 }
 
@@ -154,6 +160,51 @@ static bool check_building_death(entity *e) {
     return false;
 }
 
+static void explosion(vec2s pos, f32 radius, f32 damage) {
+    const aabb area = AABB_CH(VEC2S2I(pos), IVEC2S(radius));
+    entity *around[64];
+    const int m =
+        level_get_box_entities(
+            state->level,
+            &area,
+            around,
+            64);
+
+    for (int i = 0; i < m; i++) {
+        entity *f = around[i];
+        if (E_INFO(f)->flags & EIF_ENEMY) {
+            const f32 invdist =
+                clamp(
+                    1.0f - (glms_vec2_norm(glms_vec2_sub(f->pos, pos)) / radius),
+                    0.0f, 1.0f);
+
+            const f32 d = damage * (0.6f + invdist);
+            f->health -= d;
+            particle_new_multi_splat(
+                IVEC2S2V(entity_center(f)),
+                palette_get(E_INFO(f)->palette),
+                10,
+                2, 4,
+                false);
+            LOG("did %f damage", d);
+        }
+    }
+
+    particle_new_multi_smoke(
+        pos,
+        palette_get(PALETTE_LIGHT_GRAY),
+        35,
+        10,
+        20);
+    particle_new_multi_splat(
+        pos,
+        palette_get(PALETTE_ORANGE),
+        15,
+        5,
+        10,
+        true);
+}
+
 static void tick_mine(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
@@ -174,51 +225,11 @@ static void tick_mine(entity *e) {
         e->delete = true;
         sound_play("mine.wav", 1.0f);
 
-        const f32 base_damage = 32.0f;
-        const int mod = (e->type - ENTITY_MINE_L0) + 1;
-
-        const aabb area = aabb_scale_center(entity_aabb(e), IVEC2S(4 + mod));
-        entity *around[64];
-        const int m =
-            level_get_box_entities(
-                state->level,
-                &area,
-                around,
-                64);
-
-        const f32 radius = glms_vec2_norm(IVEC2S2V(aabb_half(area)));
-
-        for (int i = 0; i < m; i++) {
-            entity *f = around[i];
-            if (E_INFO(f)->flags & EIF_ENEMY) {
-                const f32 invdist =
-                    1.0f - (glms_vec2_norm(glms_vec2_sub(f->pos, e->pos)) / radius);
-
-                const f32 damage = base_damage * mod * invdist;
-                f->health -= damage;
-                particle_new_multi_splat(
-                    IVEC2S2V(entity_center(f)),
-                    palette_get(E_INFO(f)->palette),
-                    10,
-                    2, 4,
-                    false);
-                LOG("did %f damage", damage);
-            }
-        }
-
-        particle_new_multi_smoke(
+        const int mod = e->type - ENTITY_MINE_L0;
+        explosion(
             IVEC2S2V(entity_center(e)),
-            palette_get(PALETTE_LIGHT_GRAY),
-            35,
-            10,
-            20 * mod);
-        particle_new_multi_splat(
-            IVEC2S2V(entity_center(e)),
-            palette_get(PALETTE_ORANGE),
-            15,
-            5,
-            10 * mod,
-            true);
+            5 + (mod * 2),
+            32.0f + (mod * 12.0f));
     }
 }
 
@@ -253,7 +264,16 @@ static void tick_turret(entity *e) {
 
     if (check_building_death(e)) { return; }
 
+    const entity_info *info = &ENTITY_INFO[e->type];
+    const f32 bpt = info->turret.bps / TICKS_PER_SECOND;
+    const int t = state->time.tick + e->id.index;
+    const int n_shoot = ((int) (floorf(t * bpt))) - ((int) (floorf((t - 1) * bpt)));
+
     entity *target = level_get_entity(state->level, e->turret.target);
+
+    if (n_shoot > 0 && info->turret.is_cannon) {
+        goto new_target;
+    }
 
     if (target) {
         goto shoot;
@@ -264,6 +284,7 @@ static void tick_turret(entity *e) {
         goto shoot;
     }
 
+new_target:
     target =
         level_find_nearest_entity(
             state->level, e->tile, (f_entity_priority) priority_turret_target, e);
@@ -273,24 +294,17 @@ shoot:
     if (!target) {
         // twist idly
         e->turret.angle += 0.1f;
-
         return;
     }
 
-    const entity_info *info = &ENTITY_INFO[e->type];
-    const f32 bpt = info->turret.bps / TICKS_PER_SECOND;
-    const int n =
-        ((int) (floorf(state->time.tick * bpt)))
-            - ((int) (floorf((state->time.tick - 1) * bpt)));
-
     const vec2s
         origin = (vec2s) {{ e->pos.x + 4, e->pos.y + 5 }},
-        dir = glms_vec2_normalize(glms_vec2_sub(target->pos, origin));
+        dir = glms_vec2_normalize(glms_vec2_sub(IVEC2S2V(entity_center(target)), origin));
 
     e->turret.angle = -atan2f(dir.y, dir.x);
 
-    for (int i = 0; i < n; i++) {
-        shoot_bullet(info->turret.bullet, origin, dir);
+    for (int i = 0; i < n_shoot; i++) {
+        shoot_bullet(info->turret.bullet, origin, dir, target->tile);
     }
 }
 
@@ -370,6 +384,15 @@ static bool check_enemy_death(entity *e) {
     return false;
 }
 
+void tick_boombox(entity *e) {
+    tick_basic_building(e);
+
+    if (((e->id.index * 13) + state->time.tick) % 35 == 0) {
+        particle_new_music(
+            IVEC2S2V(entity_center(e)), 40);
+    }
+}
+
 int priority_alien_target(entity *e, entity *alien) {
     const entity_info *info = E_INFO(e);
     if (e->type != ENTITY_TRUCK && !(info->flags & EIF_PLACEABLE)) {
@@ -406,16 +429,18 @@ static int alien_path_weight(const level *l, ivec2s p, void*) {
     }
 
     tile_type tile = l->tiles[p.x][p.y];
+    int base = 1;
+
     switch (tile) {
     case TILE_MOUNTAIN: return -1;
     case TILE_LAKE: return -1;
-    case TILE_SLUDGE: return 5;
-    case TILE_MARSH: return 3;
-    case TILE_STONE: return 2;
+    case TILE_SLUDGE: base = 5;
+    case TILE_MARSH: base = 3;
+    case TILE_STONE: base = 2;
     default:
     }
 
-    return 1;
+    return base + (l->music_level[p.x][p.y] * 5);
 }
 
 void tick_alien(entity *e) {
@@ -551,22 +576,44 @@ void tick_ship(entity *e) {
 void tick_bullet(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
-    const aabb box = entity_aabb(e);
+    bool done = false;
+    if (state->level->tiles[e->tile.x][e->tile.y] == TILE_MOUNTAIN) {
+        done = true;
+    }
 
-    entity *entities[256];
-    const int ncol = find_collisions(&box, entities, 256);
-
-    for (int i = 0; i < ncol; i++) {
-        entity *f = entities[i];
-        const entity_info *f_info = &ENTITY_INFO[f->type];
-        if (f_info->flags & EIF_ENEMY) {
-            f->health -= 1.0f;
+    if (e->bullet.has_target) {
+        if (done || glms_ivec2_eq(e->tile, e->bullet.target)) {
             e->delete = true;
-            particle_new_splat(
-                IVEC2S2V(entity_center(f)),
-                palette_get(f_info->palette),
-                10);
-            break;
+            sound_play("mine.wav", 1.0f);
+
+            const int mod = e->type - ENTITY_SHELL_L0;
+            explosion(
+                IVEC2S2V(entity_center(e)),
+                6 + (mod * 2),
+                16.0f + (mod * 8.0f));
+        }
+    } else {
+        if (done) {
+            e->delete = true;
+        }
+
+        const aabb box = entity_aabb(e);
+
+        entity *entities[256];
+        const int ncol = find_collisions(&box, entities, 256);
+
+        for (int i = 0; i < ncol; i++) {
+            entity *f = entities[i];
+            const entity_info *f_info = &ENTITY_INFO[f->type];
+            if (f_info->flags & EIF_ENEMY) {
+                f->health -= 1.0f;
+                e->delete = true;
+                particle_new_splat(
+                    IVEC2S2V(entity_center(f)),
+                    palette_get(f_info->palette),
+                    10);
+                break;
+            }
         }
     }
 }
@@ -730,7 +777,7 @@ static void draw_radar(entity *e) {
                     Z_LEVEL_ENTITY_OVERLAY,
                     VEC4S(
                         col.r, col.g, col.b,
-                        0.2f + 0.5f * sin(state->time.tick / 8.0f)),
+                        0.2f + 0.5f * fabsf(sinf(state->time.tick / 8.0f))),
                     FONT_DOUBLED,
                     "?");
             }
@@ -907,6 +954,54 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .health = 35,
         },
     },
+    [ENTITY_CANNON_L0] = {
+        .name = "CANNON MK. 1",
+        .base_sprite = {{ 3, 7 }},
+        .draw = draw_turret,
+        .tick = tick_turret,
+        .unlock_price = 150,
+        .buy_price = 75,
+        .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
+        .turret = {
+            .bullet = ENTITY_SHELL_L0,
+            .bps = 0.7f,
+            .is_cannon = true,
+        },
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 6, 6 }}
+        },
+        .palette = PALETTE_BLACK,
+        .max_health = 40,
+        .base = {
+            .health = 40,
+        },
+    },
+    [ENTITY_CANNON_L1] = {
+        .name = "CANNON MK. 2",
+        .base_sprite = {{ 4, 7 }},
+        .draw = draw_turret,
+        .tick = tick_turret,
+        .unlock_price = 500,
+        .buy_price = 250,
+        .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
+        .turret = {
+            .bullet = ENTITY_SHELL_L1,
+            .bps = 1.5f,
+            .is_cannon = true,
+        },
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 6, 6 }}
+        },
+        .palette = PALETTE_YELLOW,
+        .max_health = 60,
+        .base = {
+            .health = 60,
+        },
+    },
     [ENTITY_MINE_L0] = {
         .name = "MINE MK. 1",
         .base_sprite = {{ 3, 4 }},
@@ -915,7 +1010,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 100,
         .buy_price = 75,
         .can_place = can_place_basic,
-        .flags = EIF_PLACEABLE,
+        .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
         .aabb = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
@@ -930,7 +1025,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 200,
         .buy_price = 125,
         .can_place = can_place_basic,
-        .flags = EIF_PLACEABLE,
+        .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
         .aabb = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
@@ -945,7 +1040,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 400,
         .buy_price = 175,
         .can_place = can_place_basic,
-        .flags = EIF_PLACEABLE,
+        .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
         .aabb = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
@@ -1018,7 +1113,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
     [ENTITY_BOOMBOX] = {
         .name = "BOOMBOX",
         .base_sprite = {{ 3, 3 }},
-        .tick = tick_basic_building,
+        .tick = tick_boombox,
         .draw = draw_basic,
         .unlock_price = 750,
         .buy_price = 200,
@@ -1029,6 +1124,10 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 5, 5 }}
         },
         .palette = PALETTE_BLACK,
+        .max_health = 25,
+        .base = {
+            .health = 25
+        },
     },
     [ENTITY_BULLET_L0] = {
         .base_sprite = {{ 0, 7 }},
@@ -1072,6 +1171,38 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
         .bullet = {
             .speed = 200.0f
+        },
+        .palette = 8,
+    },
+    [ENTITY_SHELL_L0] = {
+        .base_sprite = {{ 2, 7 }},
+        .draw = draw_basic,
+        .tick = tick_bullet,
+        .update = update_bullet,
+        .flags = EIF_DOES_NOT_BLOCK,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 2, 2 }}
+        },
+        .bullet = {
+            .speed = 32.0f,
+            .is_shell = true
+        },
+        .palette = 8,
+    },
+    [ENTITY_SHELL_L1] = {
+        .base_sprite = {{ 2, 7 }},
+        .draw = draw_basic,
+        .tick = tick_bullet,
+        .update = update_bullet,
+        .flags = EIF_DOES_NOT_BLOCK,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 2, 2 }}
+        },
+        .bullet = {
+            .speed = 40.0f,
+            .is_shell = true
         },
         .palette = 8,
     },
@@ -1272,10 +1403,91 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
                 { ENTITY_ALIEN_L2, 0.25f, 0.95f },
                 { ENTITY_ALIEN_TANK, 0.025f, 0.07f },
                 { ENTITY_ALIEN_FAST, 0.025f, 0.07f },
+                { ENTITY_ALIEN_GHOST, 0.025f, 0.07f },
             }
         },
         .base = {
             .health = 50
+        },
+    },
+    [ENTITY_TRANSPORT_L0] = {
+        .base_sprite = {{ 0, 9 }},
+        .draw = draw_ship,
+        .tick = tick_ship,
+        .flags = EIF_ENEMY | EIF_SHIP,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 6, 6 }}
+        },
+        .palette = PALETTE_ALIEN_GREY,
+        .enemy = {
+            .strength = 1.0f,
+            .bounty = 100
+        },
+        .ship = {
+            .spawns = {
+                { ENTITY_ALIEN_L0, 1.0f, 0.6f },
+                { ENTITY_ALIEN_L1, 0.1f, 0.2f },
+                { ENTITY_ALIEN_TANK, 0.25f, 0.2f },
+                { ENTITY_ALIEN_GHOST, 0.25f, 0.2f },
+            }
+        },
+        .base = {
+            .health = 50
+        },
+    },
+    [ENTITY_TRANSPORT_L1] = {
+        .base_sprite = {{ 1, 9 }},
+        .draw = draw_ship,
+        .tick = tick_ship,
+        .flags = EIF_ENEMY | EIF_SHIP,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 6, 6 }}
+        },
+        .palette = PALETTE_ALIEN_RED,
+        .enemy = {
+            .strength = 1.0f,
+            .bounty = 250
+        },
+        .ship = {
+            .spawns = {
+                { ENTITY_ALIEN_L1, 1.0f, 0.7f },
+                { ENTITY_ALIEN_L1, 0.5f, 0.85f },
+                { ENTITY_ALIEN_TANK, 0.25f, 0.5f },
+                { ENTITY_ALIEN_FAST, 0.25f, 0.5f },
+                { ENTITY_ALIEN_GHOST, 0.25f, 0.5f },
+            }
+        },
+        .base = {
+            .health = 80
+        },
+    },
+    [ENTITY_TRANSPORT_L2] = {
+        .base_sprite = {{ 2, 9 }},
+        .draw = draw_ship,
+        .tick = tick_ship,
+        .flags = EIF_ENEMY | EIF_SHIP,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 6, 6 }}
+        },
+        .palette = PALETTE_ALIEN_GREEN,
+        .enemy = {
+            .strength = 1.0f,
+            .bounty = 1000
+        },
+        .ship = {
+            .spawns = {
+                { ENTITY_ALIEN_L0, 3.0f, 0.9f },
+                { ENTITY_ALIEN_L1, 2.0f, 0.85f },
+                { ENTITY_ALIEN_TANK, 0.25f, 0.5f },
+                { ENTITY_ALIEN_FAST, 0.25f, 0.5f },
+                { ENTITY_ALIEN_GHOST, 0.25f, 0.5f },
+            }
+        },
+        .base = {
+            .health = 100
         },
     },
     [ENTITY_REPAIR] = {

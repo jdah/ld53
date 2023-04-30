@@ -25,6 +25,7 @@ typedef struct level_s {
 
     tile_type tiles[LEVEL_WIDTH][LEVEL_HEIGHT];
     int flags[LEVEL_WIDTH][LEVEL_HEIGHT]; // LTF_*
+    int music_level[LEVEL_WIDTH][LEVEL_HEIGHT];
 
     int last_free_entity;
     entity *entities;
@@ -41,6 +42,7 @@ void level_go(level*);
 void level_tick(level*);
 void level_update(level*, f32 dt);
 void level_draw(const level*);
+void level_update_music(level*);
 
 entity *level_new_entity(level*, entity_type);
 void level_delete_entity(level*, entity*);
