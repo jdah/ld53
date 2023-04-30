@@ -26,31 +26,16 @@ static const int char_to_flags[256] = {
     ['x'] = LTF_ALIEN_SPAWN,
 };
 
-const char *map[LEVEL_HEIGHT] = {
-    "              F    ",
-    "   x          r    ",
-    "         x    r    ",
-    "   x          r    ",
-    "        rrrrrrr    ",
-    "        r          ",
-    "        r   x      ",
-    "Srrrrrrrr          ",
-    "                   ",
-    "        x          ",
-    "    x          x   ",
-    "                   ",
-    "                   ",
-};
-
-void level_init(level *level) {
+void level_init(level *level, const level_data *data) {
     memset(level->tiles, 0, sizeof(level->tiles));
+    level->data = data;
 
     // TODO: free
     level->entities = calloc(1, MAX_ENTITIES * sizeof(entity));
 
     for (int x = 0; x < LEVEL_WIDTH; x++) {
         for (int y = 0; y < LEVEL_HEIGHT; y++) {
-            const char c = map[LEVEL_HEIGHT - y - 1][x];
+            const char c = data->map[LEVEL_HEIGHT - y - 1][x];
             tile_type tile = char_to_tile[(int) c];
             level->tiles[x][y] = tile;
             level->flags[x][y] = char_to_flags[(int) c];
@@ -98,22 +83,58 @@ void level_go(level *level) {
 
     entity *truck = level_new_entity(level, ENTITY_TRUCK);
     entity_set_pos(truck, IVEC2S2V(level_tile_to_px(start_road)));
+
+    // spawn ships
+    DYNLIST(ivec2s) ship_locations = NULL;
+    for (int x = 0; x < LEVEL_WIDTH; x++) {
+        for (int y = 0; y < LEVEL_HEIGHT; y++) {
+            if (level->flags[x][y] & LTF_ALIEN_SPAWN) {
+                *dynlist_push(ship_locations) = IVEC2S(x, y);
+            }
+        }
+    }
+
+    struct rand r = rand_create((uintptr_t) level);
+    for (int i = 0; i < (int) ARRLEN(level->data->ships); i++) {
+        const entity_type type = level->data->ships[i].type;
+        if (type == ENTITY_TYPE_NONE) { break; }
+
+        for (int j = 0; j < level->data->ships[i].count; i++) {
+            const int sz = dynlist_size(ship_locations);
+            if (sz == 0) {
+                WARN("out of ship locations!");
+                goto done;
+            }
+
+            const int k = rand_n(&r, 0, sz - 1);
+            const ivec2s p = dynlist_remove(ship_locations, k);
+            LOG("here!!, %d %d", p.x, p.y);
+
+            entity *ship = level_new_entity(level, type);
+            entity_set_pos(ship, IVEC2S2V(level_tile_to_px(p)));
+        }
+    }
+
+done:
+    dynlist_free(ship_locations);
 }
 
 void level_tick(level *level) {
     DYNLIST(entity*) delete_entities = NULL;
 
     dlist_each(node, &level->all_entities, it) {
-        ASSERT(!it.el->delete);
+        if (it.el->delete) { goto deleted; }
 
         f_entity_tick f_tick = ENTITY_INFO[it.el->type].tick;
         if (f_tick) { f_tick(it.el); }
+        it.el->ticks_alive++;
 
         if (!level_px_in_bounds(it.el->px)
             || !level_tile_in_bounds(it.el->tile)) {
             it.el->delete = true;
         }
 
+deleted:
         if (it.el->delete) {
             *dynlist_push(delete_entities) = it.el;
         }
@@ -322,13 +343,55 @@ entity *level_find_entity(level *l, entity_type type) {
     return NULL;
 }
 
-entity *level_find_nearest_entity(level *l, ivec2s pos, bool (*filter)(entity*)) {
+int level_get_tile_entities(level *l, ivec2s tile, entity **es, int n) {
+    int i = 0;
+    dlist_each(tile_node, &l->tile_entities[tile.x][tile.y], it) {
+        if (i >= n) {
+            WARN("no more space for entities");
+            return n;
+        }
+
+        es[i++] = it.el;
+    }
+    return i;
+}
+
+int level_get_box_entities(level *l, const aabb *box, entity **es, int n) {
+    const ivec2s
+        tmin = level_clamp_tile(glms_ivec2_add(level_px_to_tile(box->min), IVEC2S(-1))),
+        tmax = level_clamp_tile(glms_ivec2_add(level_px_to_tile(box->max), IVEC2S(+1)));
+
+    int i = 0;
+    for (int x = tmin.x; x <= tmax.x; x++) {
+        for (int y = tmin.y; y <= tmax.y; y++) {
+            dlist_each(tile_node, &state->level->tile_entities[x][y], it) {
+                const aabb b = entity_aabb(it.el);
+                if (aabb_collides(*box, b)) {
+                    es[i++] = it.el;
+                    if (i == n) {
+                        WARN("ran out of space for entities");
+                        return n;
+                    }
+                }
+            }
+        }
+    }
+
+    return i;
+}
+
+entity *level_find_nearest_entity(level *l, ivec2s pos, f_entity_priority f_pri, void *userdata) {
+    int pri = 0;
+    entity *res = NULL;
+
     ivec2s offset = {{ 0, 0 }};
     int i = 0, leg = 0, layer = 0;
     while (i < 1024) {
         dlist_each(tile_node, &l->tile_entities[pos.x][pos.y], it) {
-            if (filter(it.el)) {
-                return it.el;
+            int p = f_pri(it.el, userdata);
+            if (p > pri) {
+                pri = p;
+                res = it.el;
             }
         }
 
@@ -359,7 +422,7 @@ entity *level_find_nearest_entity(level *l, ivec2s pos, bool (*filter)(entity*))
         i++;
     }
 
-    return NULL;
+    return res;
 }
 
 bool level_tile_has_entities(level *l, ivec2s pos) {

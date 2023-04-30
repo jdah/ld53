@@ -112,6 +112,15 @@ bool update_sidebar() {
                 // TODO: sound
                 state->stats.unlocked[entity] = true;
                 state->stats.money -= price;
+
+                particle *p =
+                    particle_new_text(
+                        IVEC2S2V(state->input.cursor.pos),
+                        palette_get(PALETTE_RED),
+                        TICKS_PER_SECOND,
+                        "-%d",
+                        price);
+                p->z = Z_UI - 0.004f;
             }
 
             state->ui.place_entity = entity;
@@ -141,9 +150,47 @@ static bool update_cursor() {
         return false;
     }
 
+    if (input_get(&state->input, "x") & INPUT_PRESS) {
+        state->cursor_mode =
+            state->cursor_mode == CURSOR_MODE_DELETE ?
+                CURSOR_MODE_DEFAULT
+                : CURSOR_MODE_DELETE;
+    }
+
     const bool
         select = input_get(&state->input, "mouse_left") & INPUT_PRESS,
         deselect = input_get(&state->input, "mouse_right") & INPUT_PRESS;
+
+    if (state->cursor_mode == CURSOR_MODE_DELETE) {
+        state->ui.place_entity = ENTITY_TYPE_NONE;
+
+        if (deselect) {
+            state->cursor_mode = CURSOR_MODE_DEFAULT;
+            return true;
+        }
+
+        if (select) {
+            const ivec2s tile = state->input.cursor.tile;
+            dlist_each(tile_node, &state->level->tile_entities[tile.x][tile.y], it) {
+                entity_info *info = &ENTITY_INFO[it.el->type];
+                if (info->flags & EIF_PLACEABLE) {
+                    // reclaim
+                    it.el->delete = true;
+
+                    const int amount = info->buy_price / 2;
+                    state->stats.money += amount;
+                    particle_new_text(
+                        IVEC2S2V(state->input.cursor.pos),
+                        palette_get(PALETTE_YELLOW),
+                        TICKS_PER_SECOND,
+                        "+%d",
+                        amount);
+                }
+            }
+
+            return true;
+        }
+    }
 
     if (state->ui.place_entity != ENTITY_TYPE_NONE) {
         entity_info *info = &ENTITY_INFO[state->ui.place_entity];
@@ -364,13 +411,15 @@ static void draw_stats() {
             .flags = GFX_NO_FLAGS
         });
 
+
+    entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
     font_v(
         (ivec2s) {{ 2 + 9, TARGET_SIZE.y - 19 }},
         Z_UI,
         COLOR_WHITE,
         FONT_DOUBLED,
         "%d",
-        (int) state->stats.health);
+        truck ? (int) truck->health : 100);
 }
 
 static void draw_overlay() {
@@ -380,7 +429,10 @@ static void draw_overlay() {
         &(gfx_sprite) {
             .index = {{ 0, 15 }},
             .pos = IVEC2S2V(state->input.cursor.tile_px),
-            .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
+            .color =
+                state->cursor_mode == CURSOR_MODE_DEFAULT ?
+                    COLOR_WHITE
+                    : palette_get(PALETTE_RED),
             .z = Z_UI_LEVEL_OVERLAY,
             .flags = GFX_NO_FLAGS
         });
@@ -415,11 +467,29 @@ static void draw_desc() {
         state->ui.desc);
 }
 
+void draw_advice() {
+    if (state->stage == STAGE_BUILD) {
+        const char *text = "[$61X$08]RECLAIM";
+        const int width = font_width(text);
+        const sg_image_desc imdesc = sg_query_image_desc(state->image.buy_base);
+        font_str(
+            (ivec2s) {{
+                ((TARGET_SIZE.x - imdesc.width) - width) / 2 + 24,
+                TARGET_SIZE.y - 10,
+            }},
+            Z_UI,
+            COLOR_WHITE,
+            FONT_DOUBLED,
+            text);
+    }
+}
+
 void ui_draw() {
     draw_sidebar();
     draw_stats();
     draw_overlay();
     draw_desc();
+    draw_advice();
 }
 
 void ui_update() {

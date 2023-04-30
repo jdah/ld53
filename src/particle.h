@@ -10,6 +10,7 @@ typedef struct {
     vec2s pos, vel, drag, gravity, start_pos;
     vec4s color;
     bool delete, started;
+    f32 z;
 
     union {
         struct {
@@ -35,7 +36,20 @@ particle *particle_new_splat(
     vec4s color,
     int ticks);
 
+particle *particle_new_fancy(
+    vec2s pos,
+    vec4s color,
+    int ticks);
+
 void particle_new_multi_splat(
+    vec2s pos,
+    vec4s color,
+    int ticks,
+    int mi,
+    int ma,
+    bool violent);
+
+void particle_new_multi_smoke(
     vec2s pos,
     vec4s color,
     int ticks,

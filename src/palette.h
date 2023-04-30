@@ -3,11 +3,13 @@
 #include <cjam/types.h>
 #include <cjam/math.h>
 
-#define PALETTE_WHITE 9
+#define PALETTE_WHITE 8
 #define PALETTE_YELLOW 33
 #define PALETTE_RED 61
 #define PALETTE_BLACK 0
 #define PALETTE_LIGHT_GRAY 7
+#define PALETTE_LIGHT_BLUE 45
+#define PALETTE_ORANGE 30
 
 #define PALETTE_L0 6
 #define PALETTE_L1 12

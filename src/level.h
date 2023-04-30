@@ -4,11 +4,23 @@
 #include <cjam/dlist.h>
 #include <cjam/dynlist.h>
 
+#include "cjam/aabb.h"
 #include "defs.h"
 
 typedef struct entity_s entity;
 
+// TODO
+typedef struct {
+    const char *map[LEVEL_HEIGHT];
+    struct {
+        entity_type type;
+        int count;
+    } ships[32];
+} level_data;
+
 typedef struct level_s {
+    const level_data *data;
+
     tile_type tiles[LEVEL_WIDTH][LEVEL_HEIGHT];
     int flags[LEVEL_WIDTH][LEVEL_HEIGHT]; // LTF_*
 
@@ -20,7 +32,7 @@ typedef struct level_s {
     ivec2s start, finish;
 } level;
 
-void level_init(level*);
+void level_init(level*, const level_data *data);
 bool level_find_near_tile(level*, ivec2s, tile_type, ivec2s*);
 void level_go(level*);
 void level_tick(level*);
@@ -31,7 +43,11 @@ entity *level_new_entity(level*, entity_type);
 void level_delete_entity(level*, entity*);
 entity *level_get_entity(level*, entity_id);
 entity *level_find_entity(level*, entity_type);
-entity *level_find_nearest_entity(level *l, ivec2s pos, bool (*filter)(entity*));
+int level_get_tile_entities(level *l, ivec2s tile, entity **es, int n);
+int level_get_box_entities(level *l, const aabb *box, entity **es, int n);
+
+typedef int (*f_entity_priority)(entity*, void*);
+entity *level_find_nearest_entity(level *l, ivec2s pos, f_entity_priority f_pri, void*);
 bool level_tile_has_entities(level*, ivec2s);
 
 int level_path_default_weight(const level *l, ivec2s p, void*);

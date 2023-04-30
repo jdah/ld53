@@ -1,4 +1,5 @@
 #include "entity.h"
+#include "cjam/rand.h"
 #include "direction.h"
 #include "gfx.h"
 #include "level.h"
@@ -9,7 +10,7 @@
 #include <cjam/aabb.h>
 #include <cjam/time.h>
 
-#define ALIEN_BASE_DAMAGE_PER_SECOND 1.0f
+#define ALIEN_BASE_DAMAGE_PER_SECOND 2.0f
 #define ALIEN_BASE_SPEED 0.6f
 
 void entity_set_pos(entity *e, vec2s pos) {
@@ -42,13 +43,13 @@ void entity_set_pos(entity *e, vec2s pos) {
     }
 }
 
-static aabb aabb_for_entity(const entity *e) {
+aabb entity_aabb(const entity *e) {
     const entity_info *info = &ENTITY_INFO[e->type];
     return aabb_translate(info->aabb, VEC2S2I(e->pos));
 }
 
 ivec2s entity_center(const entity *e) {
-    return aabb_center(aabb_for_entity(e));
+    return aabb_center(entity_aabb(e));
 }
 
 static int find_collisions(const aabb *aabb, entity **entities, int n) {
@@ -60,7 +61,7 @@ static int find_collisions(const aabb *aabb, entity **entities, int n) {
     for (int x = tmin.x; x <= tmax.x; x++) {
         for (int y = tmin.y; y <= tmax.y; y++) {
             dlist_each(tile_node, &state->level->tile_entities[x][y], it) {
-                const struct aabb_s b = aabb_for_entity(it.el);
+                const struct aabb_s b = entity_aabb(it.el);
                 if (aabb_collides(*aabb, b)) {
                     entities[i++] = it.el;
                     if (i == n) {
@@ -96,7 +97,7 @@ static bool entity_move_on_path(
         next_px = center ? level_tile_center_px(next) : level_tile_to_px(next);
 
     vec2s
-        l = glms_vec2_sub(IVEC2S2V(next_px), e->pos),
+        l = glms_vec2_sub(IVEC2S2V(next_px), IVEC2S2V(entity_center(e))),
         m = fabsf(l.x) > fabsf(l.y) ?
             VEC2S(sign(l.x), 0.0f)
             : VEC2S(0.0f, sign(l.y));
@@ -117,7 +118,75 @@ static bool entity_move_on_path(
     return false;
 }
 
-int truck_path_weight(const level *l, ivec2s p, void*) {
+static void tick_mine(entity *e) {
+    if (state->stage != STAGE_PLAY) { return; }
+
+    entity *entities[64];
+    const int n = level_get_tile_entities(state->level, e->tile, entities, 64);
+
+    bool explode = false;
+
+    for (int i = 0; i < n; i++) {
+        if (E_INFO(entities[i])->flags & EIF_ENEMY) {
+            explode = true;
+            break;
+        }
+    }
+
+    if (explode) {
+        // // TODO: sound
+        // explode
+        e->delete = true;
+
+        const f32 base_damage = 32.0f;
+        const int mod = e->type - ENTITY_MINE_L0;
+
+        const aabb area = aabb_scale_center(entity_aabb(e), IVEC2S(3));
+        entity *around[64];
+        const int m =
+            level_get_box_entities(
+                state->level,
+                &area,
+                around,
+                64);
+
+        const f32 radius = glms_vec2_norm(IVEC2S2V(aabb_half(area)));
+
+        for (int i = 0; i < m; i++) {
+            entity *f = around[i];
+            if (E_INFO(f)->flags & EIF_ENEMY) {
+                const f32 invdist =
+                    1.0f - (glms_vec2_norm(glms_vec2_sub(f->pos, e->pos)) / radius);
+
+                const f32 damage = base_damage * mod * invdist;
+                f->health -= damage;
+                particle_new_multi_splat(
+                    IVEC2S2V(entity_center(f)),
+                    palette_get(E_INFO(f)->palette),
+                    10,
+                    2, 4,
+                    false);
+                LOG("did %f damage", damage);
+            }
+        }
+
+        particle_new_multi_smoke(
+            IVEC2S2V(entity_center(e)),
+            palette_get(PALETTE_LIGHT_GRAY),
+            35,
+            10,
+            20 * mod);
+        particle_new_multi_splat(
+            IVEC2S2V(entity_center(e)),
+            palette_get(PALETTE_ORANGE),
+            15,
+            5,
+            10 * mod,
+            true);
+    }
+}
+
+static int truck_path_weight(const level *l, ivec2s p, void*) {
     if (!level_tile_in_bounds(p)) {
         return -1;
     }
@@ -130,8 +199,14 @@ int truck_path_weight(const level *l, ivec2s p, void*) {
     return 1;
 }
 
-bool filter_turret_target(entity *e) {
-    return e->type == ENTITY_ALIEN_L0;
+int priority_turret_target(entity *e, entity *turret) {
+    if (!(E_INFO(e)->flags & EIF_ENEMY)) { return -1; }
+
+    if (E_INFO(e)->flags & EIF_SHIP) {
+        return 1;
+    }
+
+    return 2;
 }
 
 static void tick_turret(entity *e) {
@@ -152,7 +227,8 @@ static void tick_turret(entity *e) {
     }
 
     target =
-        level_find_nearest_entity(state->level, e->tile, filter_turret_target);
+        level_find_nearest_entity(
+            state->level, e->tile, (f_entity_priority) priority_turret_target, e);
     e->turret.target = target ? target->id : ENTITY_NONE;
 
 shoot:
@@ -183,6 +259,10 @@ shoot:
 static void tick_truck(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
+    if (e->health <= 0) {
+        state_set_stage(state, STAGE_DONE);
+    }
+
     dynlist_free(e->path);
 
     const bool success =
@@ -208,10 +288,63 @@ static void tick_truck(entity *e) {
                 palette_get(PALETTE_LIGHT_GRAY),
                 35);
         }
-        if (entity_move_on_path(e, 0.5f, false, &e->last_move, &e->truck.dir)) {
+
+        // TODO: variable speed
+        if (entity_move_on_path(e, 0.35f, true, &e->last_move, &e->truck.dir)) {
             state_set_stage(state, STAGE_DONE);
         }
     }
+}
+
+static bool check_enemy_death(entity *e) {
+    // TODO: sound
+    const entity_info *info = &ENTITY_INFO[e->type];
+    if (e->health <= 0) {
+        e->delete = true;
+        particle_new_text(
+            IVEC2S2V(entity_center(e)),
+            palette_get(PALETTE_YELLOW),
+            TICKS_PER_SECOND,
+            "+%d",
+            info->enemy.bounty);
+        particle_new_multi_splat(
+            IVEC2S2V(entity_center(e)),
+            palette_get(info->palette),
+            TICKS_PER_SECOND,
+            3, 5, false);
+        state->stats.money += info->enemy.bounty;
+        return true;
+    }
+
+    return false;
+}
+
+int priority_alien_target(entity *e, entity *alien) {
+    const entity_info *info = E_INFO(e);
+    if (e->type != ENTITY_TRUCK && !(info->flags & EIF_PLACEABLE)) {
+        return -1;
+    }
+
+    f32 mod = 1.0f;
+    if (e->type == ENTITY_TRUCK) {
+        mod = 5.0f;
+    } else {
+        // check for other aliens on tile, don't mob
+        entity *entities[64];
+        const int n =
+            level_get_tile_entities(state->level, e->tile, entities, 64);
+        for (int i = 0; i < n; i++) {
+            if (E_INFO(entities[i])->flags & EIF_ENEMY) {
+                mod = max(mod - 0.25f, 0.1f);
+            }
+        }
+    }
+
+    // higher priority when closer
+    const f32 invdist =
+        512.0f - glms_vec2_norm(glms_vec2_sub(e->pos, alien->pos));
+
+    return mod * invdist;
 }
 
 void tick_alien(entity *e) {
@@ -220,32 +353,28 @@ void tick_alien(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
     const entity_info *info = &ENTITY_INFO[e->type];
+    if (check_enemy_death(e)) { return; }
 
-    // TODO: splatter
-    if (e->alien.health <= 0) {
-        e->delete = true;
-        particle_new_text(
-            IVEC2S2V(entity_center(e)),
-            palette_get(PALETTE_YELLOW),
-            TICKS_PER_SECOND,
-            "+%d",
-            info->alien.bounty);
-        particle_new_multi_splat(
-            IVEC2S2V(entity_center(e)),
-            palette_get(info->palette),
-            TICKS_PER_SECOND,
-            3, 5);
-        state->stats.money += info->alien.bounty;
-        return;
-    }
+    entity *target = level_get_entity(state->level, e->alien.target);
+    if (target) { goto path; }
+
+    target =
+        level_find_nearest_entity(
+            state->level, e->tile,
+            (f_entity_priority) priority_alien_target,
+            e);
+    LOG("target is %d", target ? target->id.index : 0);
+    e->alien.target = target ? target->id : ENTITY_NONE;
+
+    if (!target) { return; }
 
     // only path for aliens once every 5 ticks
+path:
     if (e->path && ((e->id.index + state->time.tick) % 5) != 0) {
         goto move;
     }
 
-    entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
-    ASSERT(truck);
+    ASSERT(target);
 
     dynlist_free(e->path);
     const bool success =
@@ -253,7 +382,7 @@ void tick_alien(entity *e) {
             state->level,
             &e->path,
             e->tile,
-            truck->tile,
+            target->tile,
             level_path_default_weight,
             NULL);
 
@@ -268,40 +397,68 @@ move:
         return;
     }
 
-    const f32 speed = ALIEN_BASE_SPEED * info->alien.speed;
+    const f32 speed = ALIEN_BASE_SPEED * info->enemy.speed;
 
     direction dir = DIRECTION_DOWN;
 
-    if (entity_move_on_path(e, speed, true, &e->last_move, &dir)
-        && ((e->id.index + state->time.tick) % TICKS_PER_SECOND) == 0) {
+    if (entity_move_on_path(e, speed, true, &e->last_move, &dir)) {
+       vec2s
+            l = glms_vec2_sub(target->pos, e->pos),
+            m = fabsf(l.x) > fabsf(l.y) ?
+                VEC2S(sign(l.x), 0.0f)
+                : VEC2S(0.0f, sign(l.y));
+
+        m = glms_vec2_scale(m, speed);
+        // TODO: try_move
+        entity_set_pos(e, glms_vec2_add(e->pos, m));
+
         dir =
             direction_from_vec2s(
-                glms_vec2_sub(truck->pos, e->pos),
+                glms_vec2_sub(target->pos, e->pos),
                 DIRECTION_DOWN);
-    }
 
-    // try to hit truck
-    // TODO: dps?
-    if (((e->id.index + state->time.tick) % TICKS_PER_SECOND) == 0) {
-        entity *entities[256];
-        const aabb box = aabb_for_entity(e);
-        const int ncol = find_collisions(&box, entities, 256);
-        for (int i = 0; i < ncol; i++) {
-            if (entities[i]->type == ENTITY_TRUCK) {
-                state->stats.health -=
-                    ALIEN_BASE_DAMAGE_PER_SECOND * info->alien.strength;
-                break;
-            }
-        }
+        const f32 dps = ALIEN_BASE_DAMAGE_PER_SECOND * info->enemy.strength;
+        target->health -= dps / TICKS_PER_SECOND;
     }
 
     e->alien.dir = dir;
 }
 
+void tick_ship(entity *e) {
+    if (state->stage != STAGE_PLAY) { return; }
+
+    const entity_info *info = E_INFO(e);
+
+    if (check_enemy_death(e)) { return; }
+
+    if (e->ticks_alive < TICKS_PER_SECOND) {
+        particle_new_fancy(
+            IVEC2S2V(entity_center(e)),
+            palette_get(PALETTE_LIGHT_BLUE),
+            20);
+    } else {
+        const f32 spt = info->ship.spawns_per_second / TICKS_PER_SECOND;
+        const int n =
+            ((int) (floorf(state->time.tick * spt)))
+                - ((int) (floorf((state->time.tick - 1) * spt)));
+
+        struct rand r = rand_create(state->time.tick + e->id.index);
+        const f32 a = rand_f64(&r, 0, TAU);
+        for (int i = 0; i < n; i++) {
+            entity *alien =
+                level_new_entity(state->level, info->ship.spawn_type);
+            entity_set_pos(
+                alien,
+                glms_vec2_add(
+                    e->pos, glms_vec2_scale(VEC2S(cos(a), sin(a)), 5.0f)));
+        }
+    }
+}
+
 void tick_bullet(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
-    const aabb box = aabb_for_entity(e);
+    const aabb box = entity_aabb(e);
 
     entity *entities[256];
     const int ncol = find_collisions(&box, entities, 256);
@@ -309,9 +466,13 @@ void tick_bullet(entity *e) {
     for (int i = 0; i < ncol; i++) {
         entity *f = entities[i];
         const entity_info *f_info = &ENTITY_INFO[f->type];
-        if (f_info->flags & EIF_ALIEN) {
-            f->alien.health -= 1.0f;
+        if (f_info->flags & EIF_ENEMY) {
+            f->health -= 1.0f;
             e->delete = true;
+            particle_new_splat(
+                IVEC2S2V(entity_center(f)),
+                palette_get(f_info->palette),
+                10);
             break;
         }
     }
@@ -337,6 +498,20 @@ static void draw_basic(entity *e) {
             .pos = {{ e->px.x, e->px.y }},
             .index = index,
             .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
+            .z = Z_LEVEL_ENTITY,
+            .flags = GFX_NO_FLAGS
+        });
+}
+
+static void draw_ship(entity *e) {
+    ivec2s index = ENTITY_INFO[e->type].base_sprite;
+    gfx_batcher_push_sprite(
+        &state->batcher,
+        &state->atlas.tile,
+        &(gfx_sprite) {
+            .pos = {{ e->px.x, e->px.y }},
+            .index = index,
+            .color = GRAYSCALE(1.0f, e->ticks_alive / (f32) TICKS_PER_SECOND),
             .z = Z_LEVEL_ENTITY,
             .flags = GFX_NO_FLAGS
         });
@@ -408,7 +583,7 @@ static void draw_alien(entity *e) {
     const ivec2s base = info->base_sprite;
     const int i =
         glms_vec2_norm(e->last_move) > 0.0001f ?
-            (((int) roundf(state->time.tick / (4 / info->alien.speed))) % 2)
+            (((int) roundf(state->time.tick / (4 / info->enemy.speed))) % 2)
             : 0;
     ivec2s index_offset, sprite_offset = (ivec2s) {{ 0, 0 }};
     int flags = GFX_NO_FLAGS;
@@ -447,18 +622,18 @@ static void draw_alien(entity *e) {
             .flags = flags
         });
 
-    dynlist_each(e->path, it) {
-        gfx_batcher_push_sprite(
-            &state->batcher,
-            &state->atlas.tile,
-            &(gfx_sprite) {
-                .index = {{ 0, 15 }},
-                .pos = {{ it.el->x * TILE_SIZE_PX, it.el->y * TILE_SIZE_PX }},
-                .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }},
-                .z = Z_UI,
-                .flags = GFX_NO_FLAGS
-            });
-    }
+    /* dynlist_each(e->path, it) { */
+    /*     gfx_batcher_push_sprite( */
+    /*         &state->batcher, */
+    /*         &state->atlas.tile, */
+    /*         &(gfx_sprite) { */
+    /*             .index = {{ 0, 15 }}, */
+    /*             .pos = {{ it.el->x * TILE_SIZE_PX, it.el->y * TILE_SIZE_PX }}, */
+    /*             .color = {{ 1.0f, 1.0f, 1.0f, 1.0f }}, */
+    /*             .z = Z_UI, */
+    /*             .flags = GFX_NO_FLAGS */
+    /*         }); */
+    /* } */
 }
 
 static bool can_place_basic(ivec2s tile) {
@@ -483,6 +658,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 0,
         .buy_price = 25,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .turret = {
             .bullet = ENTITY_BULLET_L0,
             .bps = 4.0f,
@@ -492,6 +668,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 7, 7 }}
         },
         .palette = PALETTE_L0,
+        .base = {
+            .health = 20,
+        },
     },
     [ENTITY_TURRET_L1] = {
         .name = "TURRET MK. 2",
@@ -501,6 +680,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 100,
         .buy_price = 50,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .turret = {
             .bullet = ENTITY_BULLET_L1,
             .bps = 7.5f,
@@ -519,6 +699,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 250,
         .buy_price = 100,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .turret = {
             .bullet = ENTITY_BULLET_L2,
             .bps = 10.0f,
@@ -533,9 +714,11 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .name = "MINE MK. 1",
         .base_sprite = {{ 3, 4 }},
         .draw = draw_basic,
+        .tick = tick_mine,
         .unlock_price = 100,
         .buy_price = 75,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .aabb = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
@@ -546,9 +729,11 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .name = "MINE MK. 2",
         .base_sprite = {{ 4, 4 }},
         .draw = draw_basic,
+        .tick = tick_mine,
         .unlock_price = 200,
         .buy_price = 125,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .aabb = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
@@ -559,9 +744,11 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .name = "MINE MK. 3",
         .base_sprite = {{ 5, 4 }},
         .draw = draw_basic,
+        .tick = tick_mine,
         .unlock_price = 400,
         .buy_price = 175,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .aabb = {
             .min = {{ 0, 2 }},
             .max = {{ 6, 4 }}
@@ -575,6 +762,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 150,
         .buy_price = 100,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .aabb = {
             .min = {{ 1, 0 }},
             .max = {{ 5, 5 }}
@@ -588,6 +776,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 500,
         .buy_price = 250,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .aabb = {
             .min = {{ 1, 0 }},
             .max = {{ 5, 5 }}
@@ -601,6 +790,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .unlock_price = 750,
         .buy_price = 200,
         .can_place = can_place_basic,
+        .flags = EIF_PLACEABLE,
         .aabb = {
             .min = {{ 1, 0 }},
             .max = {{ 5, 5 }}
@@ -618,7 +808,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 1, 1 }}
         },
         .bullet = {
-            .speed = 80.0f
+            .speed = 110.0f
         },
         .palette = 8,
     },
@@ -633,7 +823,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 1, 1 }}
         },
         .bullet = {
-            .speed = 100.0f
+            .speed = 140.0f
         },
         .palette = 8,
     },
@@ -648,7 +838,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 1, 1 }}
         },
         .bullet = {
-            .speed = 150.0f
+            .speed = 200.0f
         },
         .palette = 8,
     },
@@ -661,24 +851,49 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 1 }},
         .draw = draw_truck,
         .tick = tick_truck,
+        .base = {
+            .health = 100
+        }
     },
     [ENTITY_ALIEN_L0] = {
         .base_sprite = {{ 0, 10 }},
         .draw = draw_alien,
         .tick = tick_alien,
-        .flags = EIF_ALIEN,
+        .flags = EIF_ENEMY | EIF_ALIEN,
         .aabb = {
             .min = {{ 0, 0 }},
             .max = {{ 4, 4 }}
         },
         .palette = PALETTE_ALIEN_GREEN,
-        .alien = {
+        .enemy = {
             .speed = 1.0f,
             .strength = 1.0f,
             .bounty = 5
         },
         .base = {
-            .alien = { .health = 10 }
+            .health = 10
+        },
+    },
+    [ENTITY_SHIP_L0] = {
+        .base_sprite = {{ 0, 8 }},
+        .draw = draw_ship,
+        .tick = tick_ship,
+        .flags = EIF_ENEMY | EIF_SHIP,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 7, 5 }}
+        },
+        .palette = PALETTE_ALIEN_GREY,
+        .enemy = {
+            .strength = 1.0f,
+            .bounty = 10
+        },
+        .ship = {
+            .spawn_type = ENTITY_ALIEN_L0,
+            .spawns_per_second = 0.5f
+        },
+        .base = {
+            .health = 25
         },
     },
 };

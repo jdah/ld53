@@ -42,7 +42,6 @@ typedef struct {
 
     struct {
         int money;
-        f32 health;
 
         bool unlocked[ENTITY_TYPE_COUNT];
     } stats;
@@ -57,6 +56,8 @@ typedef struct {
 
     // current game state
     stage stage, last_stage;
+
+    cursor_mode cursor_mode;
 
     level *level;
 } global_state;

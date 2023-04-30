@@ -1,4 +1,3 @@
-#include "ui.h"
 #define CJAM_IMPL
 
 #include <cjam/dlist.h>
@@ -9,6 +8,8 @@
 #include <cjam/time.h>
 #include <cjam/log.h>
 
+#include "level_data.h"
+#include "ui.h"
 #include "defs.h"
 #include "entity.h"
 #include "font.h"
@@ -181,14 +182,13 @@ static void init() {
 
     // TODO: multiple levels
     state->level = calloc(1, sizeof(*state->level));
-    level_init(state->level);
+    level_init(state->level, &LEVELS[0]);
 
     entity *alien = level_new_entity(state->level, ENTITY_ALIEN_L0);
     entity_set_pos(alien, (vec2s) {{ 20, 20 }});
 
     state_set_stage(state, STAGE_BUILD);
     state->stats.money = 10000;
-    state->stats.health = 100;
 
     for (int i = 0; i < ENTITY_TYPE_COUNT; i++) {
         if (ENTITY_INFO[i].unlock_price == 0) {
@@ -241,6 +241,8 @@ static void frame() {
 
     // handle state transition
     if (state->last_stage != state->stage) {
+        state->cursor_mode = CURSOR_MODE_DEFAULT;
+
         // TODO: clear particles?
         /* dynlist_resize(state->particles, 0); */
     }

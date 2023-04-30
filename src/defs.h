@@ -30,8 +30,9 @@
 #define Z_LEVEL_OVERLAY 0.89f
 #define Z_LEVEL_ENTITY 0.8f
 #define Z_LEVEL_ENTITY_OVERLAY 0.7f
+#define Z_LEVEL_PARTICLE 0.6f
 #define Z_UI_LEVEL_OVERLAY 0.2f
-#define Z_UI 0.0f
+#define Z_UI 0.5f
 
 #define COLOR_WHITE ((vec4s) {{ 1.0f, 1.0f, 1.0f, 1.0f }})
 #define COLOR_BLACK ((vec4s) {{ 0.0f, 0.0f, 0.0f, 0.0f }})
@@ -79,6 +80,12 @@ typedef enum {
     ENTITY_FLAG,
     ENTITY_TRUCK,
     ENTITY_ALIEN_L0,
+    ENTITY_SHIP_L0,
+    ENTITY_SHIP_L1,
+    ENTITY_SHIP_L2,
+    ENTITY_TRANSPORT_L0,
+    ENTITY_TRANSPORT_L1,
+    ENTITY_TRANSPORT_L2,
     ENTITY_TYPE_COUNT
 } entity_type;
 
@@ -86,7 +93,10 @@ typedef enum {
 enum {
     EIF_NONE = 0,
     EIF_DOES_NOT_BLOCK = 1 << 0,
-    EIF_ALIEN = 1 << 1
+    EIF_ENEMY = 1 << 1,
+    EIF_PLACEABLE = 1 << 2,
+    EIF_ALIEN = 1 << 3,
+    EIF_SHIP = 1 << 4,
 };
 
 // level tile flags
@@ -98,5 +108,11 @@ enum {
 typedef enum {
     PARTICLE_NONE = 0,
     PARTICLE_TEXT,
-    PARTICLE_PIXEL
+    PARTICLE_PIXEL,
+    PARTICLE_FANCY
 } particle_type;
+
+typedef enum {
+    CURSOR_MODE_DEFAULT = 0,
+    CURSOR_MODE_DELETE = 1
+} cursor_mode;

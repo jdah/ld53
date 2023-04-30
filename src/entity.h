@@ -8,6 +8,8 @@
 #include "defs.h"
 #include "direction.h"
 
+#define E_INFO(_p) (&ENTITY_INFO[(_p)->type])
+
 typedef struct entity_s {
     entity_id id;
     entity_type type;
@@ -17,6 +19,8 @@ typedef struct entity_s {
     ivec2s tile;
 
     vec2s last_move;
+    f32 health;
+    int ticks_alive;
 
     union {
         struct {
@@ -31,7 +35,7 @@ typedef struct entity_s {
         } bullet;
         struct {
             direction dir;
-            int health;
+            entity_id target;
         } alien;
     };
 
@@ -69,7 +73,12 @@ typedef struct entity_info_s {
         f32 speed;
         f32 strength;
         int bounty;
-    } alien;
+    } enemy;
+
+    struct {
+        entity_type spawn_type;
+        f32 spawns_per_second;
+    } ship;
 
     struct {
         f32 speed;
@@ -84,6 +93,7 @@ typedef struct entity_info_s {
 } entity_info;
 
 void entity_set_pos(entity*, vec2s);
+aabb entity_aabb(const entity*);
 ivec2s entity_center(const entity *e);
 void entity_tick(entity*);
 void entity_update(entity*, f32 dt);
