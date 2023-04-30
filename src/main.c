@@ -295,13 +295,42 @@ static void frame() {
 
     state->last_stage = state->stage;
 
+    bool unpaused = false;
     if (state->stage == STAGE_MAIN_MENU) {
         main_menu_update(&state->_main_menu);
+    } else if (state->paused) {
+        font_str(
+            (ivec2s) {{ 24, TARGET_SIZE.y / 2 }},
+            Z_UI,
+            VEC4S(1.0f),
+            FONT_DOUBLED,
+            "$61[SPACE] QUIT\n\n"
+            "$07[.] UNPAUSE");
+
+        if (input_get(&state->input, PAUSEKEYS) & INPUT_PRESS) {
+            LOG("WHAT?");
+            unpaused = true;
+            state->paused = false;
+        }
+
+        if (input_get(&state->input, "space") & INPUT_PRESS) {
+            state_set_stage(state, STAGE_MAIN_MENU);
+            unpaused = true;
+            state->paused = false;
+        }
     } else {
         ui_update();
 
         const f32 dt = state->time.delta / 1000000000.0f;
         level_update(state->level, dt);
+    }
+
+    if (!unpaused
+        && (state->stage == STAGE_PLAY
+        || state->stage == STAGE_BUILD)) {
+        if (input_get(&state->input, PAUSEKEYS) & INPUT_PRESS) {
+            state->paused = true;
+        }
     }
 
     for (u64 i = 0; i < state->time.frame_ticks; i++) {
@@ -310,7 +339,7 @@ static void frame() {
         state->tick_bullet_sounds = 0;
         state->tick_sounds = 0;
 
-        if (state->stage != STAGE_MAIN_MENU) {
+        if (state->stage != STAGE_MAIN_MENU && !state->paused) {
             level_tick(state->level);
 
             // tick particles

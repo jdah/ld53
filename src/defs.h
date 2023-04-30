@@ -11,6 +11,8 @@
 #define WINDOW_SIZE ((ivec2s) {{ 1280, 720 }})
 #define TARGET_SIZE ((ivec2s) {{ 192, 108 }})
 
+#define PAUSEKEYS "escape|backspace|."
+
 // TODO TURN OFF
 #define HACKS
 

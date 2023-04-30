@@ -109,7 +109,7 @@ level_data LEVELS[NUM_LEVELS] = {
             "                   ",
         },
         .ships = {
-            { ENTITY_SHIP_L0, 10 },
+            { ENTITY_SHIP_L0, 6 },
         },
         .bonus = 300
     },
@@ -131,8 +131,8 @@ level_data LEVELS[NUM_LEVELS] = {
             "                   ",
         },
         .ships = {
-            { ENTITY_SHIP_L1, 4 },
-            { ENTITY_SHIP_L2, 1 },
+            { ENTITY_SHIP_L1, 5 },
+            { ENTITY_SHIP_L2, 2 },
         },
         .bonus = 350
     },

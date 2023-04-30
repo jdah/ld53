@@ -1575,21 +1575,21 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
     },
     [ENTITY_REPAIR] = {
-        .name = "REPAIR 10",
+        .name = "+10 TRUCK REPAIR",
         .base_sprite = {{ 7, 0 }},
         .unlock_price = 0,
-        .buy_price = 50,
+        .buy_price = 100,
         .flags = EIF_NOT_AN_ENTITY
     },
     [ENTITY_ARMOR_UPGRADE] = {
-        .name = "ARMOR UPGRADE",
+        .name = "+TRUCK ARMOR",
         .base_sprite = {{ 8, 0 }},
         .unlock_price = 0,
         .buy_price = 1000,
         .flags = EIF_NOT_AN_ENTITY
     },
     [ENTITY_SPEED_UPGRADE] = {
-        .name = "SPEED UPGRADE",
+        .name = "+ TRUCK SPEED",
         .base_sprite = {{ 9, 0 }},
         .unlock_price = 0,
         .buy_price = 1000,

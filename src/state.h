@@ -81,6 +81,8 @@ typedef struct {
 
     int title_state;
 
+    bool paused;
+
     int level_index;
     level *level;
 

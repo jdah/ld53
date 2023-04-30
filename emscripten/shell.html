@@ -69,6 +69,36 @@
     <textarea class="emscripten" id="output" rows="8"></textarea>
     <hr>
     <script type='text/javascript'>
+var lastTarget, canvas, body;
+window.onload = function() {
+  body   = document.querySelector('body'),
+  canvas = document.getElementById('canvas');
+  var activateCanvas = function (event) {
+    lastTarget = event.target;
+    window.focus();
+    console.log("Set focus on window");
+  }
+  var preventScroll = function (event) {
+    var keyCodes = [ 32, 37, 38, 39, 40 ];
+    if (lastTarget != canvas) {
+      return false;
+    }
+    console.log('Key pressed: ' + event.keyCode);
+    if (keyCodes.includes(event.keyCode)) {
+      event.preventDefault();
+    }
+  }
+  var handleMouseDown = function (event) {
+    window.focus();
+    event.preventDefault();
+    event.stopPropagation();
+    event.target.style.cursor = 'default';
+  }
+  body.addEventListener('keydown', preventScroll, false);
+  body.addEventListener('click', activateCanvas, false);
+  canvas.addEventListener('mousedown', handleMouseDown, false);
+}
+
     var x = new AudioContext();
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
