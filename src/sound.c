@@ -1,8 +1,7 @@
 #include "sound.h"
 #include "util.h"
 
-#include "../lib/Simple-SDL2-Audio/src/audio.h"
-#include "../lib/Simple-SDL2-Audio/src/audio.c"
+#include "../lib/soloud/include/soloud_c.h"
 
 /* void sound_play(const char *resource) { */
 /*     static bool init = false; */
@@ -31,6 +30,8 @@
 #include "emscripten.h"
 #endif
 
+static Soloud *soloud;
+
 static bool ensure_init() {
     static bool init;
 
@@ -52,18 +53,19 @@ static bool ensure_init() {
 
     if (!init) {
         init = true;
-        initAudio();
+        soloud = Soloud_create();
+        Soloud_init(soloud);
     }
 
     return true;
 }
 
-void sound_play(const char *resource) {
+void sound_play(const char *resource, f32 volume) {
     if (!ensure_init()) { return; }
 
     static bool init;
 
-    // char* -> cs_audio-source_t*
+    // char* -> Wav*
     static struct map sounds;
 
     if (!init) {
@@ -80,8 +82,13 @@ void sound_play(const char *resource) {
             NULL);
     }
 
-    Audio
-        **psrc = map_find(Audio*, &sounds, resource),
+    Wav *wav = Wav_create();
+    char fullpath[1024];
+    resource_to_path(fullpath, sizeof(fullpath), resource);
+    Wav_load(wav, fullpath);
+
+    Wav
+        **psrc = map_find(Wav*, &sounds, resource),
         *src = NULL;
 
     if (psrc) {
@@ -90,37 +97,17 @@ void sound_play(const char *resource) {
         char fullpath[1024];
         resource_to_path(fullpath, sizeof(fullpath), resource);
 
-        src = createAudio(fullpath, 0, 0);
+        src = Wav_create();
+        Wav_load(wav, fullpath);
         if (!src) {
             WARN("could not create audio for %s", fullpath);
         } else {
-            LOG("loaded new sound %s", src);
+            LOG("loaded new sound %s", fullpath);
         }
 
         map_insert(&sounds, strdup(resource), src);
     }
 
-        char fullpath[1024];
-        resource_to_path(fullpath, sizeof(fullpath), resource);
-    playSound(fullpath, SDL_MIX_MAXVOLUME / 2);
-    /* playSoundFromMemory(src, SDL_MIX_MAXVOLUME / 2); */
-
-    /* static bool first; */
-    /* static cs_playing_sound_t firstsound; */
-    /* ASSERT(src); */
-    /* cs_set_global_volume(1.0f); */
-    /* cs_set_global_pause(false); */
-    /* cs_playing_sound_t playing = */
-    /*     cs_play_sound( */
-    /*         src, */
-    /*         (cs_sound_params_t) { */
-    /*             .volume = 1.0f, */
-    /*             .delay = 0, */
-    /*             .looped = false, */
-    /*             .pan = 0.5f, */
-    /*             .paused = false */
-    /*         }); */
-    /* if (!first) { first = true; firstsound = playing; } */
-    /* cs_sound_set_is_paused(playing, false); */
-    /* LOG("%" PRIu64, cs_sound_get_sample_index(firstsound)); */
+    const u32 id = Soloud_play(soloud, wav);
+    Soloud_setVolume(soloud, id, volume);
 }

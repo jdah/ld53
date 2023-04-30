@@ -120,15 +120,21 @@ native: dirs shaders $(OBJ)
 	$(LD) -o $(EXE) $(LDFLAGS) $(filter %.o,$^)
 
 soloud:
-	$(EMCC) -o bin/soloud.a \
+	$(EMCC) -r -o bin/soloud.o \
+		-s USE_SDL=2\
+		-D WITH_SDL2_STATIC \
+		-s FULL_ES2=1 \
 		-iquotelib/soloud/include \
 		lib/soloud/src/core/*.cpp \
 		lib/soloud/src/filter/*.cpp \
+		lib/soloud/src/c_api/*.cpp \
 		lib/soloud/src/backend/sdl2_static/*.cpp \
-		lib/soloud/src/audiosource/wav/*.c
+		lib/soloud/src/audiosource/wav/*.c \
+		lib/soloud/src/audiosource/wav/*.cpp
+	emar rcs bin/soloud.a bin/soloud.o
 
-build: dirs shaders soloud
-	$(EMCC) -o $(OUT) -MMD $(EMCCFLAGS) $(INCFLAGS) $(EMLDFLAGS) lib/soloud $(SRC)
+build: dirs shaders
+	$(EMCC) -o $(OUT) -MMD $(EMCCFLAGS) $(INCFLAGS) $(EMLDFLAGS) bin/soloud.a $(SRC)
 
 package: build
 	cd $(BIN) && zip index.zip index.data index.html index.js index.wasm

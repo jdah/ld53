@@ -15,6 +15,17 @@
 #define ALIEN_BASE_DAMAGE_PER_SECOND 2.0f
 #define ALIEN_BASE_SPEED 0.6f
 
+static void play_hit_sound() {
+    static struct rand r;
+    if (!r.s[0]) {
+        r = rand_create(0x12345);
+    }
+
+    char name[256];
+    snprintf(name, sizeof(name), "hit_%d.wav", (int) rand_n(&r, 0, 2));
+    sound_play(name, 1.0f);
+}
+
 void entity_set_pos(entity *e, vec2s pos) {
     const ivec2s new_tile = level_px_to_tile((ivec2s) {{ pos.x, pos.y }});
 
@@ -83,7 +94,7 @@ static entity *shoot_bullet(entity_type type, vec2s origin, vec2s dir) {
     entity *e = level_new_entity(state->level, type);
     e->bullet.velocity = glms_vec2_scale(dir, info->bullet.speed);
     entity_set_pos(e, origin);
-    sound_play("shoot.wav");
+    sound_play("shoot.wav", 0.25f);
     return e;
 }
 
@@ -122,6 +133,11 @@ static bool entity_move_on_path(
 }
 
 static bool check_building_death(entity *e) {
+    if (e->health < e->last_health && (state->time.tick % 5 == 0)) {
+        play_hit_sound();
+    }
+    e->last_health = e->health;
+
     // TODO: sound
     const entity_info *info = &ENTITY_INFO[e->type];
     if (e->health <= 0) {
@@ -131,6 +147,7 @@ static bool check_building_death(entity *e) {
             palette_get(info->palette),
             TICKS_PER_SECOND,
             5, 10, false);
+        sound_play("explode.wav", 1.0f);
         return true;
     }
 
@@ -153,9 +170,9 @@ static void tick_mine(entity *e) {
     }
 
     if (explode) {
-        // // TODO: sound
         // explode
         e->delete = true;
+        sound_play("mine.wav", 1.0f);
 
         const f32 base_damage = 32.0f;
         const int mod = (e->type - ENTITY_MINE_L0) + 1;
@@ -280,7 +297,13 @@ shoot:
 static void tick_truck(entity *e) {
     if (state->stage != STAGE_PLAY) { return; }
 
+    if (e->health < e->last_health && (state->time.tick % 5 == 0)) {
+        play_hit_sound();
+    }
+    e->last_health = e->health;
+
     if (e->health <= 0) {
+        sound_play("lose.wav", 1.0f);
         state_set_stage(state, STAGE_DONE);
     }
 
@@ -453,6 +476,10 @@ void tick_ship(entity *e) {
     if (check_enemy_death(e)) { return; }
 
     if (e->ticks_alive < TICKS_PER_SECOND) {
+        if (e->ticks_alive == 0) {
+            sound_play("ship.wav", 1.0f);
+        }
+
         particle_new_fancy(
             IVEC2S2V(entity_center(e)),
             palette_get(PALETTE_LIGHT_BLUE),
@@ -472,6 +499,7 @@ void tick_ship(entity *e) {
                 alien,
                 glms_vec2_add(
                     e->pos, glms_vec2_scale(VEC2S(cos(a), sin(a)), 5.0f)));
+            sound_play("spawn.wav", 1.0f);
         }
     }
 }
@@ -562,8 +590,36 @@ static void draw_truck(entity *e) {
         });
 }
 
+static void draw_health(entity *e) {
+    if (state->stage == STAGE_BUILD) { return; }
+
+    const int max = max(E_INFO(e)->max_health, 1);
+    const f32 u = e->health / (f32) max;
+
+    gfx_batcher_push_subimage(
+        &state->batcher,
+        state->atlas.tile.image,
+        (vec2s) {{ e->tile.x * TILE_SIZE_PX, e->tile.y * TILE_SIZE_PX + 7 }},
+        COLOR_WHITE,
+        Z_LEVEL_ENTITY_OVERLAY - 0.002f,
+        GFX_NO_FLAGS,
+        (ivec2s) {{ 40, 0 }},
+        (ivec2s) {{ 7, 1 }});
+
+    gfx_batcher_push_subimage(
+        &state->batcher,
+        state->atlas.tile.image,
+        (vec2s) {{ e->tile.x * TILE_SIZE_PX, e->tile.y * TILE_SIZE_PX + 7 }},
+        COLOR_WHITE,
+        Z_LEVEL_ENTITY_OVERLAY - 0.002f,
+        GFX_NO_FLAGS,
+        (ivec2s) {{ 32, 0 }},
+        (ivec2s) {{ u * 7, 1 }});
+}
+
 static void draw_turret(entity *e) {
     draw_basic(e);
+    draw_health(e);
 
     const int nframes = 6;
     const int i =
@@ -584,6 +640,7 @@ static void draw_turret(entity *e) {
 
 static void draw_radar(entity *e) {
     draw_basic(e);
+    draw_health(e);
 
     if (glms_ivec2_eq(state->input.cursor.tile, e->tile)) {
         const int r = E_INFO(e)->radar.radius;
@@ -741,8 +798,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 7, 7 }}
         },
         .palette = PALETTE_L0,
+        .max_health = 10,
         .base = {
-            .health = 20,
+            .health = 10,
         },
     },
     [ENTITY_TURRET_L1] = {
@@ -763,8 +821,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 7, 7 }}
         },
         .palette = PALETTE_L1,
+        .max_health = 20,
         .base = {
-            .health = 40,
+            .health = 20,
         },
     },
     [ENTITY_TURRET_L2] = {
@@ -785,8 +844,9 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 6, 6 }}
         },
         .palette = PALETTE_L2,
+        .max_health = 35,
         .base = {
-            .health = 60,
+            .health = 35,
         },
     },
     [ENTITY_MINE_L0] = {
@@ -847,6 +907,10 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 5, 5 }}
         },
         .palette = PALETTE_L0,
+        .max_health = 5,
+        .base = {
+            .health = 5
+        },
         .radar = {
             .radius = 1,
         },
@@ -864,6 +928,10 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .max = {{ 5, 5 }}
         },
         .palette = PALETTE_L1,
+        .max_health = 10,
+        .base = {
+            .health = 10
+        },
         .radar = {
             .radius = 2,
         },

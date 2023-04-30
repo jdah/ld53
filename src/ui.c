@@ -4,6 +4,7 @@
 #include "gfx.h"
 #include "level.h"
 #include "palette.h"
+#include "sound.h"
 #include "state.h"
 #include "util.h"
 
@@ -104,12 +105,12 @@ bool update_sidebar() {
                 unlocked ? info->buy_price : info->unlock_price;
 
             if (state->stats.money < price) {
-                // TODO: play bad sound
+                sound_play("select_lo.wav", 1.0f);
                 continue;
             }
 
             if (!unlocked) {
-                // TODO: sound
+                sound_play("unlock.wav", 1.0f);
                 state->stats.unlocked[entity] = true;
                 state->stats.money -= price;
 
@@ -124,6 +125,7 @@ bool update_sidebar() {
             }
 
             state->ui.place_entity = entity;
+            sound_play("select_hi.wav", 1.0f);
             LOG("placing %d", entity);
             return true;
         }
@@ -176,6 +178,7 @@ static bool update_cursor() {
                 if (info->flags & EIF_PLACEABLE) {
                     // reclaim
                     it.el->delete = true;
+                    sound_play("explode.wav", 1.0f);
 
                     const int amount = info->buy_price / 2;
                     state->stats.money += amount;
@@ -205,7 +208,7 @@ static bool update_cursor() {
                     (!info->can_place || info->can_place(state->input.cursor.tile));
 
             if (in_level && can_place) {
-                // TODO: happy sound
+                sound_play("select_hi.wav", 1.0f);
                 state->stats.money -= info->buy_price;
 
                 particle_new_text(

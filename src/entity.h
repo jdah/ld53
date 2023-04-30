@@ -19,7 +19,7 @@ typedef struct entity_s {
     ivec2s tile;
 
     vec2s last_move;
-    f32 health;
+    f32 health, last_health;
     int ticks_alive;
 
     union {
@@ -68,6 +68,7 @@ typedef struct entity_info_s {
 
     aabb aabb;
     int palette;
+    int max_health;
 
     struct {
         f32 speed;
