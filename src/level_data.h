@@ -2,6 +2,6 @@
 
 #include "level.h"
 
-#define NUM_LEVELS 10
+#define NUM_LEVELS 30
 
 extern level_data LEVELS[NUM_LEVELS];

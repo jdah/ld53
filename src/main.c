@@ -195,7 +195,10 @@ static void deinit() {
 
 static void frame() {
     if (state->hacks) {
-        const bool skip = input_get(&state->input, "1") & INPUT_PRESS;
+        const bool
+            skip = input_get(&state->input, "1") & INPUT_PRESS,
+            cheat = input_get(&state->input, "2") & INPUT_PRESS;
+
         if (skip) {
             if (state->stage == STAGE_MAIN_MENU) {
                 state_set_stage(state, STAGE_TITLE);
@@ -206,11 +209,17 @@ static void frame() {
                 // warp truck
                 entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
                 if (truck) {
+                    truck->truck.path_index = dynlist_size(truck->path) - 1;
                     entity_set_pos(
                         truck,
                         IVEC2S2V(level_tile_to_px(state->level->finish)));
                 }
 
+            }
+        }
+
+        if (cheat) {
+            if (state->stage == STAGE_PLAY || state->stage == STAGE_BUILD) {
                 state->stats.money = 50000;
             }
         }

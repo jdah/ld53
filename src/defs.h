@@ -26,7 +26,7 @@
 
 #define MAX_ENTITIES 16384
 
-#define MAX_TRUCK_HEALTH 10
+#define MAX_TRUCK_HEALTH 100
 #define MAX_TRUCK_ARMOR 3
 #define MAX_TRUCK_SPEED 3
 
@@ -44,7 +44,7 @@
 #define COLOR_WHITE ((vec4s) {{ 1.0f, 1.0f, 1.0f, 1.0f }})
 #define COLOR_BLACK ((vec4s) {{ 0.0f, 0.0f, 0.0f, 0.0f }})
 
-#define START_MONEY 50000
+#define START_MONEY 50
 
 typedef enum {
     STAGE_MAIN_MENU,

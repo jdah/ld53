@@ -21,6 +21,7 @@ static const char char_to_tile[256] = {
     ['t'] = TILE_STONE,
     ['d'] = TILE_SLUDGE,
     ['h'] = TILE_MARSH,
+    ['H'] = TILE_MARSH,
 };
 
 static const entity_type char_to_entity[256] = {
@@ -29,6 +30,7 @@ static const entity_type char_to_entity[256] = {
 
 static const int char_to_flags[256] = {
     ['x'] = LTF_ALIEN_SPAWN,
+    ['H'] = LTF_ALIEN_SPAWN,
 };
 
 void level_init(level *level, const level_data *data) {
@@ -202,7 +204,7 @@ deleted:
             spawn_random_ship(level);
         }
 
-        if (rand_chance(&r, 0.0025f)) {
+        if (rand_chance(&r, 0.0085f)) {
             spawn_random_ship(level);
         }
     }

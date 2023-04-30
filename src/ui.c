@@ -89,10 +89,10 @@ static int price_for_entity(entity_type type) {
             return 50;
         } break;
         case ENTITY_ARMOR_UPGRADE: {
-            return 250 + state->stats.truck_armor_level * 250;
+            return 450 + state->stats.truck_armor_level * 300;
         } break;
         case ENTITY_SPEED_UPGRADE: {
-            return 300 + state->stats.truck_speed_level * 300;
+            return 500 + state->stats.truck_speed_level * 300;
         } break;
         }
     }
@@ -208,6 +208,7 @@ bool update_sidebar() {
                 } break;
                 }
 
+                state->stats.money -= price;
                 particle *p =
                     particle_new_text(
                         IVEC2S2V(state->input.cursor.pos),
@@ -365,10 +366,11 @@ static void draw_sidebar() {
             entity_info *info = &ENTITY_INFO[type];
 
             bool unlocked = state->stats.unlocked[type];
-            bool enabled = true;
+            bool enabled = true, show_price = true;
 
             if (!can_buy_entity(type)) {
                 enabled = false;
+                show_price = false;
             }
 
             vec4s color = COLOR_WHITE;
@@ -407,7 +409,7 @@ static void draw_sidebar() {
                     });
             }
 
-            if (highlight) {
+            if (highlight && show_price) {
                 const ivec2s icon = unlocked ? IVEC2S(0, 0) : IVEC2S(2, 0);
 
                 gfx_batcher_push_sprite(
@@ -690,6 +692,18 @@ static void draw_endgame() {
             FONT_DOUBLED,
             "   + $33%d",
             truck_bonus);
+
+        gfx_batcher_push_sprite(
+            &state->batcher,
+            &state->atlas.tile,
+            &(gfx_sprite) {
+                .pos = (vec2s) {{ x + 14, y }},
+                .color = COLOR_WHITE,
+                .index = IVEC2S(4, 1),
+                .z = Z_UI,
+                .flags = GFX_NO_FLAGS
+            });
+
         y -= 10;
     }
 
@@ -709,6 +723,18 @@ static void draw_endgame() {
             FONT_DOUBLED,
             "   + $33%d",
             build_bonus);
+
+        gfx_batcher_push_sprite(
+            &state->batcher,
+            &state->atlas.tile,
+            &(gfx_sprite) {
+                .pos = (vec2s) {{ x + 14, y }},
+                .color = COLOR_WHITE,
+                .index = IVEC2S(0, 5),
+                .z = Z_UI,
+                .flags = GFX_NO_FLAGS
+            });
+
         y -= 10;
     }
 

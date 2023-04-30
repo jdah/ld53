@@ -140,7 +140,7 @@ void main_menu_update(main_menu *mm) {
             if (mm->index == MMI_START) {
                 /* sound_play("title.wav", 1.0f); */
                 state_set_stage(state, STAGE_TITLE);
-                state_set_level(state, 9);
+                state_set_level(state, 0);
             } else {
                 sound_play("select_hi.wav", 1.0f);
                 mm->page = mm->index == MMI_STORY ? MMP_STORY : MMP_HOW_TO;

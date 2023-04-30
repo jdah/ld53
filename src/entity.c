@@ -242,8 +242,8 @@ static void tick_mine(entity *e) {
         const int mod = e->type - ENTITY_MINE_L0;
         explosion(
             IVEC2S2V(entity_center(e)),
-            5 + (mod * 2),
-            32.0f + (mod * 12.0f));
+            5 + (mod * 3),
+            5.0f + (mod * 12.0f));
     }
 }
 
@@ -428,7 +428,7 @@ int priority_alien_target(entity *e, entity *alien) {
     if (e->type == ENTITY_TRUCK) {
         mod = 5.0f;
     } else if (e->type == ENTITY_DECOY_TRUCK) {
-        mod = 3.0f;
+        mod = 4.8f;
     } else {
         // check for other aliens on tile, don't mob
         entity *entities[64];
@@ -537,8 +537,20 @@ move:
                 glms_vec2_sub(target->pos, e->pos),
                 DIRECTION_DOWN);
 
-        const f32 dps = ALIEN_BASE_DAMAGE_PER_SECOND * info->enemy.strength;
+        f32 dps = ALIEN_BASE_DAMAGE_PER_SECOND * info->enemy.strength;
+        dps *= 1.0f - (state->stats.truck_armor_level * 0.25f);
+        dps = max(dps, 0);
+
         target->health -= dps / TICKS_PER_SECOND;
+
+        // particle
+        if ((state->time.tick + e->id.index * 13) % 20 == 0) {
+            particle_new_multi_splat(
+                IVEC2S2V(entity_center(e)),
+                palette_get(E_INFO(target)->palette),
+                TICKS_PER_SECOND,
+                2, 5, false);
+        }
     }
 
     e->alien.dir = dir;
@@ -614,7 +626,7 @@ void tick_bullet(entity *e) {
             explosion(
                 IVEC2S2V(entity_center(e)),
                 6 + (mod * 2),
-                16.0f + (mod * 8.0f));
+                5.0f + (mod * 20.0f));
         }
     } else {
         if (done) {
@@ -932,7 +944,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .flags = EIF_PLACEABLE,
         .turret = {
             .bullet = ENTITY_BULLET_L0,
-            .bps = 4.0f,
+            .bps = 3.2f,
         },
         .aabb = {
             .min = {{ 0, 0 }},
@@ -949,13 +961,13 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 1, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 100,
-        .buy_price = 50,
+        .unlock_price = 200,
+        .buy_price = 100,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
             .bullet = ENTITY_BULLET_L1,
-            .bps = 7.5f,
+            .bps = 6.0f,
         },
         .aabb = {
             .min = {{ 0, 0 }},
@@ -972,8 +984,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 2, 5 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 250,
-        .buy_price = 100,
+        .unlock_price = 500,
+        .buy_price = 250,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -995,8 +1007,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 7 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 150,
-        .buy_price = 75,
+        .unlock_price = 400,
+        .buy_price = 150,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1019,8 +1031,8 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 4, 7 }},
         .draw = draw_turret,
         .tick = tick_turret,
-        .unlock_price = 500,
-        .buy_price = 250,
+        .unlock_price = 800,
+        .buy_price = 500,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
         .turret = {
@@ -1073,7 +1085,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 5, 4 }},
         .draw = draw_basic,
         .tick = tick_mine,
-        .unlock_price = 400,
+        .unlock_price = 500,
         .buy_price = 175,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE | EIF_CAN_SPAWN,
@@ -1151,7 +1163,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 3 }},
         .tick = tick_boombox,
         .draw = draw_basic,
-        .unlock_price = 750,
+        .unlock_price = 500,
         .buy_price = 200,
         .can_place = can_place_basic,
         .flags = EIF_PLACEABLE,
@@ -1251,6 +1263,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .base_sprite = {{ 3, 1 }},
         .draw = draw_truck,
         .tick = tick_truck,
+        .palette = 12,
         .aabb = {
             .min = {{ 1, 1 }},
             .max = {{ 7, 6 }}
@@ -1385,7 +1398,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_GREY,
         .enemy = {
             .strength = 1.0f,
-            .bounty = 10
+            .bounty = 15
         },
         .ship = {
             .spawns = {
@@ -1409,7 +1422,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_RED,
         .enemy = {
             .strength = 1.0f,
-            .bounty = 25
+            .bounty = 30
         },
         .ship = {
             .spawns = {
@@ -1434,7 +1447,7 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         .palette = PALETTE_ALIEN_GREEN,
         .enemy = {
             .strength = 1.0f,
-            .bounty = 50
+            .bounty = 80
         },
         .ship = {
             .spawns = {
