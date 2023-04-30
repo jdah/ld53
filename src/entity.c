@@ -340,8 +340,8 @@ static void tick_truck(entity *e) {
                 35);
         }
 
-        // TODO: variable speed
-        if (entity_move_on_path(e, 0.35f, true, &e->last_move, &e->truck.dir)) {
+        const f32 speed = 0.35f + state->stats.truck_speed_level * 0.15f;
+        if (entity_move_on_path(e, speed, true, &e->last_move, &e->truck.dir)) {
             state_set_stage(state, STAGE_DONE);
         }
     }
@@ -400,6 +400,24 @@ int priority_alien_target(entity *e, entity *alien) {
     return mod * invdist;
 }
 
+static int alien_path_weight(const level *l, ivec2s p, void*) {
+    if (!level_tile_in_bounds(p)) {
+        return -1;
+    }
+
+    tile_type tile = l->tiles[p.x][p.y];
+    switch (tile) {
+    case TILE_MOUNTAIN: return -1;
+    case TILE_LAKE: return -1;
+    case TILE_SLUDGE: return 5;
+    case TILE_MARSH: return 3;
+    case TILE_STONE: return 2;
+    default:
+    }
+
+    return 1;
+}
+
 void tick_alien(entity *e) {
     e->last_move = VEC2S(0);
 
@@ -436,7 +454,7 @@ path:
             &e->path,
             e->tile,
             target->tile,
-            level_path_default_weight,
+            alien_path_weight,
             NULL);
 
     if (!success) {
@@ -750,13 +768,19 @@ static void draw_alien(entity *e) {
     default: ASSERT(false);
     }
 
+    vec4s color = palette_get(E_INFO(e)->palette);
+
+    if (e->type == ENTITY_ALIEN_GHOST) {
+        color.a = 0.6f;
+    }
+
     gfx_batcher_push_sprite(
         &state->batcher,
         &state->atlas.tile,
         &(gfx_sprite) {
             .pos = glms_vec2_add(e->pos, IVEC2S2V(sprite_offset)),
             .index = glms_ivec2_add(base, index_offset),
-            .color = COLOR_WHITE,
+            .color = color,
             .z = Z_LEVEL_ENTITY_OVERLAY,
             .flags = flags
         });
@@ -777,6 +801,14 @@ static void draw_alien(entity *e) {
 
 static bool can_place_basic(ivec2s tile) {
     if (!level_tile_in_bounds(tile)) { return false; }
+
+    switch (state->level->tiles[tile.x][tile.y]) {
+    case TILE_BASE: return true;
+    case TILE_MARSH: return true;
+    default:
+    }
+
+    return false;
 
     dlist_each(tile_node, &state->level->tile_entities[tile.x][tile.y], it) {
         const int flags = ENTITY_INFO[it.el->type].flags;
@@ -1056,6 +1088,101 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
         },
         .base = {
             .health = 10
+        },
+    },
+    [ENTITY_ALIEN_L1] = {
+        .base_sprite = {{ 0, 10 }},
+        .draw = draw_alien,
+        .tick = tick_alien,
+        .flags = EIF_ENEMY | EIF_ALIEN,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 4, 4 }}
+        },
+        .palette = PALETTE_ALIEN_RED,
+        .enemy = {
+            .speed = 1.2f,
+            .strength = 1.2f,
+            .bounty = 15
+        },
+        .base = {
+            .health = 15
+        },
+    },
+    [ENTITY_ALIEN_L2] = {
+        .base_sprite = {{ 0, 10 }},
+        .draw = draw_alien,
+        .tick = tick_alien,
+        .flags = EIF_ENEMY | EIF_ALIEN,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 4, 4 }}
+        },
+        .palette = PALETTE_ALIEN_BLUE,
+        .enemy = {
+            .speed = 1.4f,
+            .strength = 1.4f,
+            .bounty = 25
+        },
+        .base = {
+            .health = 25
+        },
+    },
+    [ENTITY_ALIEN_FAST] = {
+        .base_sprite = {{ 0, 10 }},
+        .draw = draw_alien,
+        .tick = tick_alien,
+        .flags = EIF_ENEMY | EIF_ALIEN,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 4, 4 }}
+        },
+        .palette = PALETTE_ALIEN_YELLOW,
+        .enemy = {
+            .speed = 2.2f,
+            .strength = 0.9f,
+            .bounty = 50
+        },
+        .base = {
+            .health = 10
+        },
+    },
+    [ENTITY_ALIEN_TANK] = {
+        .base_sprite = {{ 0, 10 }},
+        .draw = draw_alien,
+        .tick = tick_alien,
+        .flags = EIF_ENEMY | EIF_ALIEN,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 4, 4 }}
+        },
+        .palette = PALETTE_ALIEN_GREY,
+        .enemy = {
+            .speed = 0.5f,
+            .strength = 2.5f,
+            .bounty = 100
+        },
+        .base = {
+            .health = 50
+        },
+    },
+    [ENTITY_ALIEN_GHOST] = {
+        .base_sprite = {{ 0, 10 }},
+        .draw = draw_alien,
+        .tick = tick_alien,
+        .flags = EIF_ENEMY | EIF_ALIEN,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 4, 4 }}
+        },
+        .palette = PALETTE_ALIEN_GREY,
+        .enemy = {
+            .speed = 1.4f,
+            .strength = 1.2f,
+            .bounty = 100
+        },
+        .base = {
+            .health = 20
         },
     },
     [ENTITY_SHIP_L0] = {

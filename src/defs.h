@@ -44,7 +44,7 @@
 #define COLOR_WHITE ((vec4s) {{ 1.0f, 1.0f, 1.0f, 1.0f }})
 #define COLOR_BLACK ((vec4s) {{ 0.0f, 0.0f, 0.0f, 0.0f }})
 
-#define START_MONEY 50
+#define START_MONEY 50000
 
 typedef enum {
     STAGE_MAIN_MENU,
@@ -60,6 +60,11 @@ typedef enum {
     TILE_ROAD,
     TILE_WAREHOUSE_START,
     TILE_WAREHOUSE_FINISH,
+    TILE_MOUNTAIN,
+    TILE_LAKE,
+    TILE_STONE,
+    TILE_SLUDGE,
+    TILE_MARSH,
     TILE_COUNT
 } tile_type;
 
@@ -91,6 +96,11 @@ typedef enum {
     ENTITY_DECOY_TRUCK,
     ENTITY_TRUCK,
     ENTITY_ALIEN_L0,
+    ENTITY_ALIEN_L1,
+    ENTITY_ALIEN_L2,
+    ENTITY_ALIEN_FAST,
+    ENTITY_ALIEN_TANK,
+    ENTITY_ALIEN_GHOST,
     ENTITY_SHIP_L0,
     ENTITY_SHIP_L1,
     ENTITY_SHIP_L2,

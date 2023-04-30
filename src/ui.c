@@ -582,8 +582,11 @@ static int get_building_reclaim_bonus(level *l) {
 
     dlist_each(node, &l->all_entities, it) {
         if (E_INFO(it.el)->flags & EIF_PLACEABLE) {
+            const int max_health = E_INFO(it.el)->max_health;
             const f32 condition =
-                ifnan(it.el->health / (f32) E_INFO(it.el)->max_health, 0);
+                max_health > 0 ?
+                    ifnan(it.el->health / (f32) E_INFO(it.el)->max_health, 0)
+                    : 1;
             res += E_INFO(it.el)->buy_price * condition;
         }
     }
@@ -722,6 +725,10 @@ static void draw_endgame() {
 }
 
 static void update_endgame() {
+    if (state->stage != STAGE_DONE) {
+        return;
+    }
+
     entity *truck = level_find_entity(state->level, ENTITY_TRUCK);
     const bool lost = !truck || truck->health <= 0;
 

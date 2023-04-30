@@ -16,6 +16,11 @@ static const char char_to_tile[256] = {
     ['r'] = TILE_ROAD,
     ['S'] = TILE_WAREHOUSE_START,
     ['F'] = TILE_WAREHOUSE_FINISH,
+    ['m'] = TILE_MOUNTAIN,
+    ['l'] = TILE_LAKE,
+    ['t'] = TILE_STONE,
+    ['d'] = TILE_SLUDGE,
+    ['h'] = TILE_MARSH,
 };
 
 static const entity_type char_to_entity[256] = {
@@ -191,7 +196,7 @@ static void tile_draw(
     const level *level, ivec2s lpos, tile_type tile) {
     ivec2s index = {{ 0, 0 }};
     f32 z = Z_LEVEL_BASE;
-    struct rand rng = rand_create(lpos.x * (lpos.y * 13));
+    struct rand rng = rand_create(tile + (lpos.x << 11) ^ (lpos.y * 13));
 
     switch (tile) {
     case TILE_COUNT: ASSERT(false);
@@ -201,6 +206,48 @@ static void tile_draw(
             0 + rand_n(&rng, 0, 3),
             0,
         }};
+
+        if (level->tiles[lpos.x][lpos.y] == tile
+            && rand_chance(&rng, 0.21f)) {
+            // draw grass
+            gfx_batcher_push_sprite(
+                &state->batcher,
+                &state->atlas.tile,
+                &(gfx_sprite) {
+                    .pos = {{ lpos.x * TILE_SIZE_PX, lpos.y * TILE_SIZE_PX }},
+                    .index = {{ 8 + (state->time.animtick % 2), 4 + rand_n(&rng, 0, 2) }},
+                    .color = COLOR_WHITE,
+                    .z = z - 0.0001f,
+                    .flags = GFX_NO_FLAGS
+                });
+        }
+    } break;
+    case TILE_MARSH: {
+        index = (ivec2s) {{
+            10 + rand_n(&rng, 0, 3),
+            1,
+        }};
+    } break;
+    case TILE_SLUDGE: {
+        index = (ivec2s) {{
+            10 + rand_n(&rng, 0, 3),
+            0,
+        }};
+    } break;
+    case TILE_MOUNTAIN: {
+        tile_draw(level, lpos, TILE_BASE);
+        index = IVEC2S(8, 1);
+        z -= 0.001f;
+    } break;
+    case TILE_LAKE: {
+        tile_draw(level, lpos, TILE_BASE);
+        index = IVEC2S(9, 1 + state->time.animtick % 3);
+        z -= 0.001f;
+    } break;
+    case TILE_STONE: {
+        tile_draw(level, lpos, TILE_BASE);
+        index = IVEC2S(8, 2);
+        z -= 0.001f;
     } break;
     case TILE_ROAD: {
         tile_draw(level, lpos, TILE_BASE);

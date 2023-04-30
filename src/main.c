@@ -286,6 +286,7 @@ static void frame() {
 
     for (u64 i = 0; i < state->time.frame_ticks; i++) {
         state->time.tick++;
+        state->time.animtick = state->time.tick / 20;
 
         if (state->stage != STAGE_MAIN_MENU) {
             level_tick(state->level);

@@ -40,6 +40,7 @@ typedef struct {
         u64 second_ticks, tps;
         u64 second_frames, fps;
         u64 tick;
+        u64 animtick;
     } time;
 
     struct {
