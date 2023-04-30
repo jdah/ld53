@@ -1543,6 +1543,34 @@ entity_info ENTITY_INFO[ENTITY_TYPE_COUNT] = {
             .health = 100
         },
     },
+    [ENTITY_FLAGSHIP] = {
+        .base_sprite = {{ 3, 9 }},
+        .draw = draw_ship,
+        .tick = tick_ship,
+        .flags = EIF_ENEMY | EIF_SHIP,
+        .aabb = {
+            .min = {{ 0, 0 }},
+            .max = {{ 6, 6 }}
+        },
+        .palette = PALETTE_ALIEN_GREEN,
+        .enemy = {
+            .strength = 1.0f,
+            .bounty = 2500
+        },
+        .ship = {
+            .spawns = {
+                { ENTITY_ALIEN_L0, 3.0f, 0.9f },
+                { ENTITY_ALIEN_L1, 2.0f, 0.85f },
+                { ENTITY_ALIEN_L2, 2.0f, 0.85f },
+                { ENTITY_ALIEN_TANK, 0.5f, 0.5f },
+                { ENTITY_ALIEN_FAST, 0.5f, 0.5f },
+                { ENTITY_ALIEN_GHOST, 0.5f, 0.5f },
+            }
+        },
+        .base = {
+            .health = 250
+        },
+    },
     [ENTITY_REPAIR] = {
         .name = "REPAIR 10",
         .base_sprite = {{ 7, 0 }},
