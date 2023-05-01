@@ -4,11 +4,7 @@
 
 #include <cjam/types.h>
 
-// IMPORTANT: CHANGE BEFORE SUBMIT
-// TODO
-// XXX
-// DO THIS
-#define WINDOW_SIZE ((ivec2s) {{ 1280, 720 }})
+#define WINDOW_SIZE ((ivec2s) {{ 948, 533 }})
 #define TARGET_SIZE ((ivec2s) {{ 192, 108 }})
 
 #define PAUSEKEYS "escape|backspace|."
