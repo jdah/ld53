@@ -90,11 +90,6 @@ void sound_play(const char *resource, f32 volume) {
             NULL);
     }
 
-    Wav *wav = Wav_create();
-    char fullpath[1024];
-    resource_to_path(fullpath, sizeof(fullpath), resource);
-    Wav_load(wav, fullpath);
-
     Wav
         **psrc = map_find(Wav*, &sounds, resource),
         *src = NULL;
@@ -106,7 +101,7 @@ void sound_play(const char *resource, f32 volume) {
         resource_to_path(fullpath, sizeof(fullpath), resource);
 
         src = Wav_create();
-        Wav_load(wav, fullpath);
+        Wav_load(src, fullpath);
         if (!src) {
             WARN("could not create audio for %s", fullpath);
         } else {
@@ -116,6 +111,6 @@ void sound_play(const char *resource, f32 volume) {
         map_insert(&sounds, strdup(resource), src);
     }
 
-    const u32 id = Soloud_play(soloud, wav);
+    const u32 id = Soloud_play(soloud, src);
     Soloud_setVolume(soloud, id, volume);
 }

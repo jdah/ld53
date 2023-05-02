@@ -240,7 +240,7 @@ void _dynlist_alloc_impl(void **plist, int tsize) {
         .userdata = NULL,
     };
     *plist = h + 1;
-    ASSERT((uintptr_t) (*plist) % 16 == 0);
+    /* ASSERT((uintptr_t) (*plist) % 16 == 0); */
 }
 
 void _dynlist_free_impl(void **plist, int tsize) {

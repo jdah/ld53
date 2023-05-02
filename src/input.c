@@ -15,6 +15,7 @@ void input_update(input *input) {
     dynlist_each(input->clear, it) {
         input->buttons[*it.el].state &= ~(INPUT_PRESS | INPUT_RELEASE);
     }
+    dynlist_resize(input->clear, 0);
 
     input->cursor.last_pos = input->cursor.pos;
 

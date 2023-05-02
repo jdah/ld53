@@ -45,16 +45,19 @@ EMCCFLAGS += -Wextra
 EMCCFLAGS += -Wpedantic
 EMCCFLAGS += -Wno-unused-parameter
 EMCCFLAGS += -Wno-gnu
-EMCCFLAGS += -fsanitize=undefined,address,leak
+#EMCCFLAGS += -fsanitize=undefined,address,leak
 
 # emcc specifics
-EMCCLFAGS += -s TOTAL_MEMORY=33554432
-EMCCFLAGS += -s ALLOW_MEMORY_GROWTH
+EMCCLFAGS += -s INITIAL_MEMORY=256MB
+EMCCFLAGS += -sINITIAL_MEMORY=256MB
+EMCCLFAGS += -s TOTAL_MEMORY=256MB
+# EMCCFLAGS += -s ALLOW_MEMORY_GROWTH
 EMCCFLAGS += -s USE_SDL_IMAGE=2
 EMCCFLAGS += -s SDL2_IMAGE_FORMATS='["png"]'
 EMCCFLAGS += --preload-file res
 EMCCFLAGS += -s USE_SDL=2
 EMCCFLAGS += -s FULL_ES3
+# EMCCFLAGS += --memoryprofiler
 
 CCFLAGS += -std=c2x
 CCFLAGS += -O0

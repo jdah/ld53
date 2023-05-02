@@ -329,6 +329,7 @@ static gfx_batcher_list *list_for_image(gfx_batcher *batcher, sg_image image) {
     if (pslot) {
         list = *pslot;
     } else {
+        LOG("new list for image %d", image.id);
         list = CJAM_ALLOC(sizeof(*list) /* NOLINT */, NULL);
         memset(list, 0, sizeof(*list) /* NOLINT */);
         list->image = image;
@@ -482,5 +483,5 @@ void gfx_batcher_draw(
 }
 
 void gfx_batcher_clear(gfx_batcher *batcher) {
-    map_clear(&batcher->image_lists);
+    /* map_clear(&batcher->image_lists); */
 }
