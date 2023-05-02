@@ -10,7 +10,7 @@
 #define PAUSEKEYS "escape|backspace|."
 
 // TODO TURN OFF
-// #define HACKS
+#define HACKS
 
 #define SOUNDS_PER_TICK 2
 

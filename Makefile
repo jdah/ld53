@@ -60,7 +60,7 @@ EMCCFLAGS += -s FULL_ES3
 # EMCCFLAGS += --memoryprofiler
 
 CCFLAGS += -std=c2x
-CCFLAGS += -O0
+CCFLAGS += -O2
 CCFLAGS += -g
 CCFLAGS += -Wall
 CCFLAGS += -Wextra
@@ -74,9 +74,12 @@ LDFLAGS += -fsanitize=undefined,address,leak
 CCFLAGS += $(shell sdl2-config --cflags)
 LDFLAGS += $(shell sdl2-config --libs)
 LDFLAGS += -lSDL2_Image
+LDFLAGS += -lstdc++
 
-LDFLAGS += -framework AudioUnit
-LDFLAGS += -framework AudioToolbox
+ifeq ($(UNAME), Darwin)
+	LDFLAGS += -framework AudioUnit
+	LDFLAGS += -framework AudioToolbox
+endif
 
 ifeq ($(TARGET),RELEASE)
 EMCCFLAGS += --shell-file emscripten/shell-release.html
@@ -114,13 +117,24 @@ dirs: $(BIN) FORCE
 	$(shell mkdir -p $(BIN)/src)
 	rsync -a --include '*/' --exclude '*' "src" "bin"
 
-$(OBJ): %.o: %.c
-	$(CC) -o $@ -MMD -c $(CCFLAGS) $(INCFLAGS) $<
+SOLOUD_SRC_GLOB = \
+	lib/soloud/src/core/*.cpp \
+	lib/soloud/src/filter/*.cpp \
+	lib/soloud/src/c_api/*.cpp \
+	lib/soloud/src/backend/sdl2_static/*.cpp \
+	lib/soloud/src/audiosource/**/*.c \
+	lib/soloud/src/audiosource/**/*.cpp
+SOLOUD_SRC = $(shell find $(SOLOUD_SRC_GLOB))
+SOLOUD_OBJ = $(addsuffix .o,$(SOLOUD_SRC))
 
-native: dirs shaders $(OBJ)
-	$(LD) -o $(EXE) $(LDFLAGS) $(filter %.o,$^)
+$(SOLOUD_OBJ): %.o: %
+	$(CC) -c -o $@ \
+		-D WITH_SDL2_STATIC \
+		-iquotelib/soloud/include \
+		$(shell sdl2-config --cflags) \
+		$<
 
-soloud:
+soloud: $(SOLOUD_OBJ)
 	$(EMCC) -r -o bin/soloud.o \
 		-s USE_SDL=2\
 		-D WITH_SDL2_STATIC \
@@ -133,6 +147,13 @@ soloud:
 		lib/soloud/src/audiosource/wav/*.c \
 		lib/soloud/src/audiosource/wav/*.cpp
 	emar rcs bin/soloud.a bin/soloud.o
+	ar rcs bin/libsoloud_native.a $(SOLOUD_OBJ)
+
+$(OBJ): %.o: %.c
+	$(CC) -o $@ -MMD -c $(CCFLAGS) $(INCFLAGS) $<
+
+native: dirs shaders $(OBJ)
+	$(LD) -o $(EXE) $(LDFLAGS) bin/libsoloud_native.a $(filter %.o,$^)
 
 build: dirs shaders
 	$(EMCC) -o $(OUT) -MMD $(EMCCFLAGS) $(INCFLAGS) $(EMLDFLAGS) bin/soloud.a $(SRC)
